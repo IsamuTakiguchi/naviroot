@@ -15,6 +15,7 @@ import { useFavorites } from '../hooks/useFavorites';
 import { paramsToQuery, queryToParams } from '../lib/query';
 import { formatDateJa, formatTime } from '../lib/format';
 import { FILTER_LABEL } from '../lib/navitime';
+import { Icon } from '../components/Icon';
 
 export function TransitPage() {
   const [params, setParams] = useSearchParams();
@@ -130,7 +131,7 @@ export function TransitPage() {
                   navigate({ pathname: '/map', search: queryToParams({ from, to, mode: 'WALKING', timeType: 'departure' }).toString() })
                 }
               >
-                🚶 徒歩ルートで検索する
+                <Icon name="walk" size={16} /> 徒歩ルートで検索する
               </button>
             </div>
           )}
@@ -172,7 +173,13 @@ export function TransitPage() {
                   disabled={transit.loadingMore}
                   onClick={() => void transit.searchMore()}
                 >
-                  {transit.loadingMore ? '別の経路を探しています…' : '🔎 別の経路も探す（安い・乗換が少ない・歩きが少ない順）'}
+                  {transit.loadingMore ? (
+                    '別の経路を探しています…'
+                  ) : (
+                    <>
+                      <Icon name="search" size={16} /> 別の経路も探す（安い・乗換が少ない・歩きが少ない順）
+                    </>
+                  )}
                 </button>
               )}
               {transit.moreError && <div className="alert warn">{transit.moreError}</div>}
@@ -180,7 +187,7 @@ export function TransitPage() {
             {selected && (
               <div className="results-detail">
                 <button type="button" className="btn small ghost mobile-only" onClick={() => setSelected(undefined)}>
-                  ← 一覧に戻る
+                  <Icon name="chevron-left" size={16} /> 一覧に戻る
                 </button>
                 {showMap && (
                   <div className="card" style={{ padding: 0, overflow: 'hidden', height: 280 }}>
@@ -240,7 +247,9 @@ export function TransitPage() {
                     .map((f) =>
                       f.kind === 'route' ? (
                         <li key={f.id}>
-                          <span style={{ fontSize: 20 }}>★</span>
+                          <span style={{ color: 'var(--accent)', display: 'inline-flex' }}>
+                            <Icon name="star" size={20} />
+                          </span>
                           <button
                             type="button"
                             className="main"

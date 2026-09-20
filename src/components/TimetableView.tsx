@@ -1,5 +1,6 @@
 import type { TimetableEntry } from '../types';
 import { formatDuration, formatTime, VEHICLE_ICON } from '../lib/format';
+import { Icon } from './Icon';
 
 export function TimetableView({ entries }: { entries: TimetableEntry[] }) {
   if (entries.length === 0) return <div className="empty">出発便が見つかりませんでした。</div>;
@@ -11,7 +12,7 @@ export function TimetableView({ entries }: { entries: TimetableEntry[] }) {
           <div>
             <div className="line">
               <span className="swatch" style={{ background: e.lineColor ?? undefined }} />
-              {VEHICLE_ICON[e.vehicle]} {e.lineShortName ?? e.lineName}
+              <Icon name={VEHICLE_ICON[e.vehicle]} size={16} /> {e.lineShortName ?? e.lineName}
               {e.headsign && <span style={{ fontWeight: 400 }}> {e.headsign} 行</span>}
             </div>
             <div className="sub">

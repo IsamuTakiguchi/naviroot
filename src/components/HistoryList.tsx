@@ -1,5 +1,6 @@
 import type { HistoryItem } from '../types';
 import { formatDateJa, formatTime, MODE_ICON } from '../lib/format';
+import { Icon } from './Icon';
 
 interface Props {
   history: HistoryItem[];
@@ -19,7 +20,9 @@ export function HistoryList({ history, onOpen, onRemove, onClear, limit }: Props
           const d = new Date(h.searchedAt);
           return (
             <li key={h.id}>
-              <span style={{ fontSize: 20 }}>{MODE_ICON[h.mode]}</span>
+              <span style={{ color: 'var(--accent)', display: 'inline-flex' }}>
+                <Icon name={MODE_ICON[h.mode]} size={22} />
+              </span>
               <button type="button" className="main" onClick={() => onOpen(h)}>
                 <div className="title">
                   {h.from.name} → {h.to.name}
@@ -29,7 +32,7 @@ export function HistoryList({ history, onOpen, onRemove, onClear, limit }: Props
                 </div>
               </button>
               <button type="button" className="icon-btn" aria-label="削除" onClick={() => onRemove(h.id)}>
-                ×
+                <Icon name="close" size={16} />
               </button>
             </li>
           );

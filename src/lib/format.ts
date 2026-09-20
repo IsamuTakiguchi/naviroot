@@ -1,4 +1,5 @@
 import type { TravelMode, TransitVehicle } from '../types';
+import type { IconName } from '../components/Icon';
 
 const pad2 = (n: number) => n.toString().padStart(2, '0');
 
@@ -70,18 +71,18 @@ export const MODE_LABEL: Record<TravelMode, string> = {
   BICYCLING: '自転車',
 };
 
-export const MODE_ICON: Record<TravelMode, string> = {
-  TRANSIT: '🚃',
-  WALKING: '🚶',
-  DRIVING: '🚗',
-  BICYCLING: '🚲',
+export const MODE_ICON: Record<TravelMode, IconName> = {
+  TRANSIT: 'train',
+  WALKING: 'walk',
+  DRIVING: 'car',
+  BICYCLING: 'bicycle',
 };
 
-export const VEHICLE_ICON: Record<TransitVehicle, string> = {
-  BUS: '🚌',
-  RAIL: '🚃',
-  SUBWAY: '🚇',
-  TRAIN: '🚆',
-  TRAM: '🚋',
-  OTHER: '🚌',
+export const VEHICLE_ICON: Record<TransitVehicle, IconName> = {
+  BUS: 'bus',
+  RAIL: 'train',
+  SUBWAY: 'subway',
+  TRAIN: 'express',
+  TRAM: 'tram',
+  OTHER: 'train',
 };

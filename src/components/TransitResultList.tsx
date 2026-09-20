@@ -1,5 +1,6 @@
 import type { TransitPlan, PlanBadge } from '../types';
 import { formatDuration, formatFare, formatTime, VEHICLE_ICON } from '../lib/format';
+import { Icon } from './Icon';
 
 const BADGE_LABEL: Record<PlanBadge, string> = { fastest: '早', cheapest: '安', easiest: '楽' };
 
@@ -53,11 +54,11 @@ export function TransitResultList({ plans, selectedId, onSelect }: Props) {
             {p.segments.map((s, j) =>
               s.kind === 'walk' ? (
                 <span key={j} className="line-pill walk">
-                  🚶 {formatDuration(s.durationSec)}
+                  <Icon name="walk" size={13} /> {formatDuration(s.durationSec)}
                 </span>
               ) : (
                 <span key={j} className="line-pill" style={{ borderLeftColor: s.lineColor ?? undefined }}>
-                  {VEHICLE_ICON[s.vehicle]} {s.lineShortName ?? s.lineName}
+                  <Icon name={VEHICLE_ICON[s.vehicle]} size={13} /> {s.lineShortName ?? s.lineName}
                 </span>
               ),
             )}

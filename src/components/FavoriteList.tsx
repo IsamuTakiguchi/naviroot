@@ -1,7 +1,8 @@
 import type { Favorite } from '../types';
 import { MODE_ICON } from '../lib/format';
+import { Icon, type IconName } from './Icon';
 
-const LABEL_ICON = { home: '🏠', work: '🏢', other: '📍' } as const;
+const LABEL_ICON: Record<'home' | 'work' | 'other', IconName> = { home: 'home', work: 'work', other: 'pin' };
 const LABEL_TEXT = { home: '自宅', work: '職場', other: 'スポット' } as const;
 
 interface Props {
@@ -17,7 +18,9 @@ export function FavoriteList({ favorites, onOpen, onGoTo, onRemove }: Props) {
     <ul className="list">
       {favorites.map((f) => (
         <li key={f.id}>
-          <span style={{ fontSize: 20 }}>{f.kind === 'place' ? LABEL_ICON[f.label] : MODE_ICON[f.mode]}</span>
+          <span style={{ color: 'var(--accent)', display: 'inline-flex' }}>
+            <Icon name={f.kind === 'place' ? LABEL_ICON[f.label] : MODE_ICON[f.mode]} size={22} />
+          </span>
           <button type="button" className="main" onClick={() => onOpen(f)}>
             {f.kind === 'place' ? (
               <>
@@ -44,7 +47,7 @@ export function FavoriteList({ favorites, onOpen, onGoTo, onRemove }: Props) {
             </button>
           )}
           <button type="button" className="icon-btn" aria-label="削除" onClick={() => onRemove(f.id)}>
-            🗑
+            <Icon name="trash" size={18} />
           </button>
         </li>
       ))}

@@ -13,6 +13,7 @@ import { useSettings } from '../hooks/useSettings';
 import { toMapRoutes } from '../lib/directions';
 import { paramsToQuery, queryToParams } from '../lib/query';
 import { MODE_ICON, MODE_LABEL } from '../lib/format';
+import { Icon } from '../components/Icon';
 
 const MODES: TravelMode[] = ['WALKING', 'DRIVING', 'BICYCLING'];
 const MODE_COLOR: Record<TravelMode, string> = {
@@ -116,14 +117,14 @@ export function MapRoutePage() {
           currentLocation={geo.position}
         />
         <button type="button" className="map-fab" aria-label="現在地" onClick={locate} disabled={geo.loading}>
-          {geo.loading ? '…' : '◎'}
+          {geo.loading ? '…' : <Icon name="locate" size={22} />}
         </button>
       </div>
       <div className={`panel ${!formOpen && route && !expanded ? 'collapsed' : ''}`}>
         <div className="segmented" style={{ marginBottom: 8 }}>
           {MODES.map((m) => (
             <button key={m} type="button" className={mode === m ? 'active' : ''} onClick={() => changeMode(m)}>
-              {MODE_ICON[m]} {MODE_LABEL[m]}
+              <Icon name={MODE_ICON[m]} size={17} /> {MODE_LABEL[m]}
             </button>
           ))}
         </div>
@@ -139,7 +140,7 @@ export function MapRoutePage() {
           />
         ) : (
           <button type="button" className="btn small ghost" onClick={() => setFormOpen(true)}>
-            {from?.name} → {to?.name} ✎
+            {from?.name} → {to?.name} <Icon name="edit" size={14} />
           </button>
         )}
         {geo.error && <div className="alert error">{geo.error}</div>}
@@ -183,7 +184,8 @@ export function MapRoutePage() {
                     else favorites.addRoute(from, to, mode);
                   }}
                 >
-                  {isFav ? '★ 登録済み' : '☆ お気に入り'}
+                  {isFav ? <Icon name="star" size={16} /> : <Icon name="star-outline" size={16} />}
+                  {isFav ? '登録済み' : 'お気に入り'}
                 </button>
               </div>
             )}

@@ -8,6 +8,7 @@ import { useFavorites } from '../hooks/useFavorites';
 import { useMapsLibrary } from '@vis.gl/react-google-maps';
 import { queryToParams } from '../lib/query';
 import { resolvePlace } from '../lib/places';
+import { Icon } from '../components/Icon';
 
 export function SearchPage() {
   const navigate = useNavigate();
@@ -87,7 +88,7 @@ export function SearchPage() {
           onClick={reverse}
         />
         <button type="button" className="map-fab" aria-label="現在地" onClick={locate} disabled={geo.loading}>
-          {geo.loading ? '…' : '◎'}
+          {geo.loading ? '…' : <Icon name="locate" size={22} />}
         </button>
       </div>
       <div className="panel">
@@ -100,24 +101,24 @@ export function SearchPage() {
             {place.address && <div style={{ fontSize: 13, color: 'var(--color-text-muted)' }}>{place.address}</div>}
             <div className="row wrap" style={{ marginTop: 10 }}>
               <button type="button" className="btn primary" onClick={() => go('/', 'to')}>
-                🚃 ここへ行く
+                <Icon name="train" size={16} /> ここへ行く
               </button>
               <button type="button" className="btn" onClick={() => go('/', 'from')}>
                 ここから出発
               </button>
               <button type="button" className="btn" onClick={() => go('/map', 'to')}>
-                🗺️ 徒歩・車ルート
+                <Icon name="map" size={16} /> 徒歩・車ルート
               </button>
             </div>
             <div className="row wrap" style={{ marginTop: 8 }}>
               <button type="button" className="btn small" onClick={() => addFav('other')}>
-                ☆ お気に入り
+                <Icon name="star-outline" size={15} /> お気に入り
               </button>
               <button type="button" className="btn small" onClick={() => addFav('home')}>
-                🏠 自宅に設定
+                <Icon name="home" size={15} /> 自宅に設定
               </button>
               <button type="button" className="btn small" onClick={() => addFav('work')}>
-                🏢 職場に設定
+                <Icon name="work" size={15} /> 職場に設定
               </button>
             </div>
           </div>

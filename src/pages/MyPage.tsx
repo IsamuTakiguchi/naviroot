@@ -20,6 +20,7 @@ import {
 import { ApiKeyForm } from '../components/ApiKeyForm';
 import { validateNavitimeKey } from '../components/NavitimeKeyNotice';
 import { useState } from 'react';
+import { Icon } from '../components/Icon';
 
 export function MyPage() {
   const navigate = useNavigate();
@@ -70,7 +71,7 @@ export function MyPage() {
       <div className="section-title">時刻表</div>
       <div className="card">
         <button type="button" className="btn block" onClick={() => navigate('/timetable')}>
-          🕒 駅の出発時刻を調べる
+          <Icon name="clock" size={18} /> 駅の出発時刻を調べる
         </button>
       </div>
 

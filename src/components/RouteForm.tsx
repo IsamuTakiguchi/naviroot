@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import type { Place, TimeType, TransitFilter } from '../types';
 import { FILTER_LABEL } from '../lib/navitime';
+import { Icon, type IconName } from './Icon';
 import { PlaceInput } from './PlaceInput';
 import { useGeolocation } from '../hooks/useGeolocation';
 import { useFavorites } from '../hooks/useFavorites';
@@ -23,11 +24,11 @@ interface Props {
   loading?: boolean;
 }
 
-const FILTERS: { key: TransitFilter; icon: string }[] = [
-  { key: 'all', icon: '🚃🚌' },
-  { key: 'bus', icon: '🚌' },
-  { key: 'train', icon: '🚃' },
-  { key: 'no_express', icon: '🚄' },
+const FILTERS: { key: TransitFilter; icons: IconName[] }[] = [
+  { key: 'all', icons: ['train', 'bus'] },
+  { key: 'bus', icons: ['bus'] },
+  { key: 'train', icons: ['train'] },
+  { key: 'no_express', icons: ['express'] },
 ];
 
 const TIME_TYPES: { key: TimeType; label: string }[] = [
@@ -97,7 +98,7 @@ export function RouteForm(props: Props) {
           bias={geo.position}
         />
         <button type="button" className="icon-btn swap" aria-label="出発地と目的地を入れ替え" onClick={swap}>
-          ⇅
+          <Icon name="swap" size={20} />
         </button>
         <PlaceInput
           value={to}
@@ -117,20 +118,20 @@ export function RouteForm(props: Props) {
           {home && (
             <>
               <button type="button" className="chip" onClick={() => onToChange(home)}>
-                🏠 自宅へ
+                <Icon name="home" size={16} /> 自宅へ
               </button>
               <button type="button" className="chip" onClick={() => onFromChange(home)}>
-                🏠 自宅から
+                <Icon name="home" size={16} /> 自宅から
               </button>
             </>
           )}
           {work && (
             <>
               <button type="button" className="chip" onClick={() => onToChange(work)}>
-                🏢 職場へ
+                <Icon name="work" size={16} /> 職場へ
               </button>
               <button type="button" className="chip" onClick={() => onFromChange(work)}>
-                🏢 職場から
+                <Icon name="work" size={16} /> 職場から
               </button>
             </>
           )}
@@ -179,7 +180,10 @@ export function RouteForm(props: Props) {
               className={`chip ${filter === f.key ? 'active' : ''}`}
               onClick={() => onFilterChange(f.key)}
             >
-              {f.icon} {FILTER_LABEL[f.key]}
+              {f.icons.map((ic) => (
+                <Icon key={ic} name={ic} size={16} />
+              ))}{' '}
+              {FILTER_LABEL[f.key]}
             </button>
           ))}
         </div>

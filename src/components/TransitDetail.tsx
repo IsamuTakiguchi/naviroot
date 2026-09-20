@@ -1,6 +1,7 @@
 import type { TransitPlan, TransitSegment } from '../types';
 import { formatDistance, formatDuration, formatFare, formatTime, VEHICLE_ICON } from '../lib/format';
 import { Badges } from './TransitResultList';
+import { Icon } from './Icon';
 
 interface Props {
   plan: TransitPlan;
@@ -34,12 +35,13 @@ export function TransitDetail({ plan, fromName, toName, onToggleFavorite, isFavo
       <div className="row" style={{ margin: '10px 0' }}>
         {onToggleFavorite && (
           <button type="button" className="btn small" onClick={onToggleFavorite}>
-            {isFavorite ? '★ 登録済み' : '☆ お気に入り'}
+            {isFavorite ? <Icon name="star" size={16} /> : <Icon name="star-outline" size={16} />}
+            {isFavorite ? '登録済み' : 'お気に入り'}
           </button>
         )}
         {onShowMap && (
           <button type="button" className="btn small" onClick={onShowMap}>
-            🗺️ 地図で見る
+            <Icon name="map" size={16} /> 地図で見る
           </button>
         )}
       </div>
@@ -56,7 +58,7 @@ export function TransitDetail({ plan, fromName, toName, onToggleFavorite, isFavo
                 <span className="dur">{formatDuration(s.durationSec)}</span>
                 <span className="bar" />
                 <div className="body">
-                  🚶 徒歩 {formatDistance(s.distanceM)}
+                  <Icon name="walk" size={16} /> 徒歩 {formatDistance(s.distanceM)}
                   {s.instruction && s.instruction !== '徒歩' && <div className="sub">{s.instruction}</div>}
                 </div>
               </li>
@@ -84,7 +86,7 @@ export function TransitDetail({ plan, fromName, toName, onToggleFavorite, isFavo
                 <span className="bar" />
                 <div className="body">
                   <span className="line-name" style={{ color: s.lineTextColor ?? '#fff' }}>
-                    {VEHICLE_ICON[s.vehicle]} {s.lineName}
+                    <Icon name={VEHICLE_ICON[s.vehicle]} size={15} /> {s.lineName}
                   </span>
                   <div className="sub">
                     {s.headsign && <>{s.headsign} 行</>}

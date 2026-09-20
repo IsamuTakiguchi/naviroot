@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useMapsLibrary } from '@vis.gl/react-google-maps';
 import type { LatLng, Place } from '../types';
 import { DEFAULT_CENTER } from '../config';
+import { Icon } from './Icon';
 
 interface Props {
   value?: Place;
@@ -197,7 +198,7 @@ export function PlaceInput({ value, placeholder, onChange, onLocate, locating, a
               inputRef.current?.focus();
             }}
           >
-            ×
+            <Icon name="close" size={16} />
           </button>
         )}
         {onLocate && (
@@ -209,7 +210,7 @@ export function PlaceInput({ value, placeholder, onChange, onLocate, locating, a
             onClick={onLocate}
             disabled={locating}
           >
-            {locating ? '…' : '◎'}
+            {locating ? '…' : <Icon name="locate" size={20} />}
           </button>
         )}
       </div>

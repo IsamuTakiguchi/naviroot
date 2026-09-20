@@ -1,5 +1,6 @@
 import type { MapRoute } from '../types';
 import { formatDistance, formatDuration, MODE_ICON, MODE_LABEL } from '../lib/format';
+import { Icon } from './Icon';
 
 const MANEUVER_ICON: Record<string, string> = {
   'turn-left': '↰',
@@ -31,7 +32,9 @@ export function RouteSummary({ route, expanded, onToggle }: Props) {
     <div>
       <div className="row">
         <div className="summary-big">
-          <span>{MODE_ICON[route.mode]}</span>
+          <span style={{ color: 'var(--accent)', display: 'inline-flex' }}>
+            <Icon name={MODE_ICON[route.mode]} size={26} />
+          </span>
           <span className="dur">{formatDuration(route.durationSec)}</span>
           <span className="dist">{formatDistance(route.distanceM)}</span>
         </div>
@@ -58,7 +61,9 @@ export function RouteSummary({ route, expanded, onToggle }: Props) {
             </li>
           ))}
           <li>
-            <span>🏁</span>
+            <span>
+              <Icon name="flag" size={16} />
+            </span>
             <span>{route.endAddress || '目的地に到着'}</span>
             <span />
           </li>
