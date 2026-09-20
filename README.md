@@ -1,8 +1,8 @@
 # naviroot 乗換・経路案内 PWA
 
-NAVITIME 風の経路検索アプリです。Google Maps Platform を使い、以下の機能をブラウザ（PWA）で提供します。
+NAVITIME 風の経路検索アプリです。地図・徒歩／車ルート・スポット検索に Google Maps Platform、乗換案内に NAVITIME API（RapidAPI）を使い、以下の機能をブラウザ（PWA）で提供します。
 
-- **乗換案内**: 電車・バスの経路候補を複数表示。所要時間・運賃・乗換回数、「早」「安」「楽」バッジ、出発／到着／始発／終電の指定、路線ごとのタイムライン表示、地図表示
+- **乗換案内**: 電車・バスの経路候補を複数表示。所要時間・運賃（IC）・乗換回数、「早」「安」「楽」バッジ、出発／到着／始発／終電の指定、路線ごとのタイムライン表示、地図表示。NAVITIME API キーが無い場合は Google マップ・Yahoo!乗換案内に検索条件を引き渡す
 - **地図・経路検索**: 徒歩・車・自転車のルートを地図に描画し、距離・所要時間・道順を表示
 - **スポット検索**: 駅名・住所・スポット名のオートコンプリート検索、地図タップで場所選択、現在地表示、「ここへ行く」「ここから出発」
 - **時刻表**: 出発駅から到着駅への直近の出発便一覧
@@ -33,6 +33,16 @@ NAVITIME 風の経路検索アプリです。Google Maps Platform を使い、�
 4. （推奨）キーの「アプリケーションの制限」を「ウェブサイト」にし、`https://isamutakiguchi.github.io/*` のみ許可する。「API の制限」を付ける場合は上の 3 つ（＋Geocoding API）を許可する
 
 キーの変更・削除は、アプリの「マイページ → 設定 → Google Maps API キー」から行えます。
+
+## 乗換案内（NAVITIME API）の設定
+
+Google の公式 FAQ にあるとおり、**Routes API は日本の交通事業者の乗換案内に対応していません**（「インド国鉄と日本を除くすべての Google 乗換パートナーに対応」）。そのため乗換案内には NAVITIME の API を使います。
+
+1. [RapidAPI の NAVITIME Route(totalnavi)](https://rapidapi.com/navitimejapan-navitimejapan/api/navitime-route-totalnavi) を開き、Sign Up でアカウントを作成（無料）
+2. Pricing タブで **Basic（$0、月 500 リクエスト、50 リクエスト/分）** を Subscribe
+3. Endpoints タブのコード例にある `X-RapidAPI-Key` の値をコピーし、アプリの「マイページ → 設定 → NAVITIME 乗換 API キー」または乗換案内タブの案内欄に貼り付け
+
+キーが無い場合、または無料枠を超えて 429 が返った場合は、乗換案内タブに「Google マップで乗換案内を開く」「Yahoo!乗換案内で開く」ボタンを表示して検索条件を引き渡します。今月の利用回数はマイページに表示されます（端末内のカウント）。時刻表機能は 1 回の表示で最大 6 リクエストを消費します。
 
 ## 「このページでは Google マップが正しく読み込まれませんでした」と出たら
 
@@ -69,9 +79,10 @@ Service Worker はアプリ本体をキャッシュしますが、Google Maps �
 
 ## 注意事項
 
-- Google Maps Platform は従量課金です（Routes API の経路検索・Places API (New) の詳細取得は各 SKU ごとに月 10,000 回程度の無料枠あり）。**時刻表機能は 1 回の表示で Routes API を最大 6 回呼び出します**（`src/config.ts` の `TIMETABLE_MAX_QUERIES` で変更可能）。
+- Google Maps Platform は従量課金です（Routes API の徒歩／車ルート・Places API (New) の詳細取得は各 SKU ごとに月 10,000 回程度の無料枠あり）。
+- NAVITIME API（RapidAPI Basic）は月 500 リクエストまで無料。**時刻表機能は 1 回の表示で最大 6 回呼び出します**（`src/config.ts` の `TIMETABLE_MAX_QUERIES` で変更可能）。
 - 自転車ルートは日本国内では Google が未対応の地域が多く、その場合は徒歩ルートへの切替を案内します。
-- 運賃は Google が経路に運賃情報を返した場合のみ表示されます。
+- 運賃は NAVITIME が返す IC カード運賃（無ければきっぷ運賃）を表示します。
 - 時刻表は駅単体の時刻表ではなく、「出発駅→到着駅」の経路検索結果を出発時刻順に並べたものです。
 
 ## 構成
@@ -82,8 +93,11 @@ src/
 ├── config.ts          APIキー（端末保存 / ビルド時環境変数）、既定の地図中心、各種上限
 ├── types.ts           Place / RouteQuery / TransitPlan などの型
 ├── lib/
-│   ├── directions.ts  Routes API（Route.computeRoutes）のリクエスト生成・エラー日本語化
-│   ├── transit.ts     Route → 乗換案内プラン（区間分解・運賃・バッジ付与）
+│   ├── directions.ts  Routes API（Route.computeRoutes）のリクエスト生成・エラー日本語化（徒歩・車・自転車）
+│   ├── navitime.ts    NAVITIME Route(totalnavi) API クライアントと乗換案内プランへの変換
+│   ├── externalLinks.ts Google マップ / Yahoo!乗換案内への引き渡し URL
+│   ├── places.ts      自由入力の地点を Places API (New) で座標に解決
+│   ├── transit.ts     乗換案内プランの共通処理（徒歩区間の結合・「早」「安」「楽」バッジ）
 │   ├── mapsErrors.ts  Google Maps 認証エラー（課金・リファラー等）の捕捉と日本語説明
 │   ├── timetable.ts   出発時刻一覧の収集ロジック
 │   ├── query.ts       検索条件と URL クエリの相互変換

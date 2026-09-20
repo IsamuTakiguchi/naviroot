@@ -4,25 +4,50 @@ import { saveApiKey } from '../config';
 interface Props {
   onSaved?: () => void;
   compact?: boolean;
+  /** 保存処理。既定は Google Maps API キー */
+  save?: (key: string) => boolean;
+  /** 形式チェック。エラー文言を返すと保存しない */
+  validate?: (key: string) => string | undefined;
+  placeholder?: string;
+  ariaLabel?: string;
+  submitLabel?: string;
+  /** 保存後にページを再読み込みするか（既定: true。地図ライブラリの再初期化に必要） */
+  reload?: boolean;
 }
 
-/** Google Maps API キーの貼り付け・保存フォーム。保存後はページを再読み込みして地図ライブラリを初期化する。 */
-export function ApiKeyForm({ onSaved, compact }: Props) {
+const validateGoogleKey = (k: string) =>
+  k.length < 20 || !/^[A-Za-z0-9_-]+$/.test(k)
+    ? 'API キーの形式が正しくないようです。「AIza」で始まる 39 文字前後の文字列を貼り付けてください。'
+    : undefined;
+
+/** API キーの貼り付け・保存フォーム（Google Maps / NAVITIME 共用） */
+export function ApiKeyForm({
+  onSaved,
+  compact,
+  save = saveApiKey,
+  validate = validateGoogleKey,
+  placeholder = 'AIza… で始まる API キーを貼り付け',
+  ariaLabel = 'Google Maps API キー',
+  submitLabel,
+  reload = true,
+}: Props) {
   const [key, setKey] = useState('');
   const [error, setError] = useState<string | undefined>();
 
   const submit = () => {
     const k = key.trim();
-    if (k.length < 20 || !/^[A-Za-z0-9_-]+$/.test(k)) {
-      setError('API キーの形式が正しくないようです。「AIza」で始まる 39 文字前後の文字列を貼り付けてください。');
+    const problem = validate(k);
+    if (problem) {
+      setError(problem);
       return;
     }
-    if (!saveApiKey(k)) {
+    if (!save(k)) {
       setError('この端末に保存できませんでした。ブラウザのプライベートモードでは保存できない場合があります。');
       return;
     }
     onSaved?.();
-    window.location.reload();
+    if (reload) window.location.reload();
+    else setKey('');
   };
 
   return (
@@ -39,17 +64,17 @@ export function ApiKeyForm({ onSaved, compact }: Props) {
             inputMode="text"
             autoComplete="off"
             spellCheck={false}
-            placeholder="AIza… で始まる API キーを貼り付け"
+            placeholder={placeholder}
             value={key}
             onChange={(e) => {
               setKey(e.target.value);
               setError(undefined);
             }}
-            aria-label="Google Maps API キー"
+            aria-label={ariaLabel}
           />
         </div>
         <button type="submit" className="btn primary" disabled={!key.trim()}>
-          {compact ? '保存' : '保存して開始'}
+          {submitLabel ?? (compact ? '保存' : '保存して開始')}
         </button>
       </div>
       {error && <div className="alert error">{error}</div>}

@@ -117,7 +117,7 @@ export function stepToSegment(step: StepLike): PlanSegment {
 }
 
 /** 連続する徒歩区間をひとつにまとめる */
-function mergeWalks(segments: PlanSegment[]): PlanSegment[] {
+export function mergeWalks(segments: PlanSegment[]): PlanSegment[] {
   const out: PlanSegment[] = [];
   for (const s of segments) {
     const last = out[out.length - 1];

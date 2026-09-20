@@ -7,8 +7,18 @@ import { useHistory } from '../hooks/useHistory';
 import { useSettings } from '../hooks/useSettings';
 import { queryToParams } from '../lib/query';
 import { MODE_LABEL } from '../lib/format';
-import { apiKeySource, clearApiKey, hasApiKey } from '../config';
+import {
+  apiKeySource,
+  clearApiKey,
+  clearNavitimeKey,
+  getNavitimeKey,
+  hasApiKey,
+  NAVITIME_FREE_LIMIT,
+  readNavitimeUsage,
+  saveNavitimeKey,
+} from '../config';
 import { ApiKeyForm } from '../components/ApiKeyForm';
+import { validateNavitimeKey } from '../components/NavitimeKeyNotice';
 import { useState } from 'react';
 
 export function MyPage() {
@@ -17,7 +27,10 @@ export function MyPage() {
   const history = useHistory();
   const { settings, update } = useSettings();
   const [editingKey, setEditingKey] = useState(false);
+  const [editingNavitime, setEditingNavitime] = useState(false);
   const keySource = apiKeySource();
+  const hasNavitime = !!getNavitimeKey();
+  const usage = readNavitimeUsage();
 
   const openFavorite = (f: Favorite) => {
     if (f.kind === 'route') {
@@ -77,7 +90,7 @@ export function MyPage() {
           <span>検索履歴を保存する</span>
           <input type="checkbox" checked={settings.saveHistory} onChange={(e) => update({ saveHistory: e.target.checked })} />
         </div>
-        <div className="toggle" style={{ borderBottom: 0, flexWrap: 'wrap', gap: 8 }}>
+        <div className="toggle" style={{ flexWrap: 'wrap', gap: 8 }}>
           <span>Google Maps API キー</span>
           <span className="row">
             <span style={{ color: hasApiKey() ? 'var(--color-success)' : 'var(--color-danger)', fontSize: 13 }}>
@@ -103,13 +116,59 @@ export function MyPage() {
           </span>
         </div>
         {editingKey && (
-          <div style={{ paddingTop: 10 }}>
+          <div style={{ padding: '10px 0', borderBottom: '1px solid var(--color-border)' }}>
             <ApiKeyForm compact />
+          </div>
+        )}
+        <div className="toggle" style={{ borderBottom: 0, flexWrap: 'wrap', gap: 8 }}>
+          <span>
+            NAVITIME 乗換 API キー（RapidAPI）
+            {hasNavitime && (
+              <span style={{ display: 'block', fontSize: 12, color: usage.count >= NAVITIME_FREE_LIMIT * 0.9 ? 'var(--color-danger)' : 'var(--color-text-muted)' }}>
+                今月の利用: {usage.count} / {NAVITIME_FREE_LIMIT} 回（この端末でのカウント）
+              </span>
+            )}
+          </span>
+          <span className="row">
+            <span style={{ color: hasNavitime ? 'var(--color-success)' : 'var(--color-text-muted)', fontSize: 13 }}>
+              {hasNavitime ? '設定済み' : '未設定（Google マップ等へ引き渡し）'}
+            </span>
+            <button type="button" className="btn small" onClick={() => setEditingNavitime((v) => !v)}>
+              {editingNavitime ? '閉じる' : hasNavitime ? '変更' : '設定'}
+            </button>
+            {hasNavitime && (
+              <button
+                type="button"
+                className="btn small danger"
+                onClick={() => {
+                  if (window.confirm('この端末に保存した NAVITIME API キーを削除しますか？')) {
+                    clearNavitimeKey();
+                    window.location.reload();
+                  }
+                }}
+              >
+                削除
+              </button>
+            )}
+          </span>
+        </div>
+        {editingNavitime && (
+          <div style={{ paddingTop: 10 }}>
+            <ApiKeyForm
+              compact
+              save={saveNavitimeKey}
+              validate={validateNavitimeKey}
+              placeholder="RapidAPI の X-RapidAPI-Key を貼り付け"
+              ariaLabel="NAVITIME API キー"
+            />
+            <p style={{ fontSize: 12, color: 'var(--color-text-muted)', margin: '6px 0 0' }}>
+              取得方法は乗換案内タブで検索したときに表示されます（RapidAPI で NAVITIME Route(totalnavi) の Basic プランを Subscribe）。
+            </p>
           </div>
         )}
       </div>
       <p style={{ fontSize: 12, color: 'var(--color-text-muted)' }}>
-        naviroot v{__APP_VERSION__} ・ 地図・経路データ: Google Maps Platform
+        naviroot v{__APP_VERSION__} ・ 地図・徒歩/車ルート・スポット: Google Maps Platform ・ 乗換案内: NAVITIME API
       </p>
     </div>
   );

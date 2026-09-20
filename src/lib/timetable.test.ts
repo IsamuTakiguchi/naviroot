@@ -1,29 +1,38 @@
 import { describe, expect, it, vi } from 'vitest';
 import { collectTimetable, mergeEntries, nextDepartureAfter, planToEntry } from './timetable';
-import type { RouteLike, StepLike } from './transit';
-import type { TimetableEntry } from '../types';
+import type { TimetableEntry, TransitPlan } from '../types';
 
 const t = (h: number, m: number) => new Date(2026, 8, 19, h, m);
 
-function ride(line: string, dep: Date, arr: Date): StepLike {
+function plan(dep: Date, line = '丸ノ内線', withWalk = true): TransitPlan {
+  const arr = new Date(dep.getTime() + 15 * 60_000);
   return {
-    travelMode: 'TRANSIT',
-    staticDurationMillis: arr.getTime() - dep.getTime(),
-    transitDetails: {
-      transitLine: { name: line, vehicle: { vehicleType: 'SUBWAY', name: '地下鉄' } },
-      headsign: '池袋',
-      departureStop: { name: '銀座' },
-      arrivalStop: { name: '新宿' },
-      departureTime: dep,
-      arrivalTime: arr,
-      stopCount: 5,
-    },
+    id: 'p',
+    departureTime: new Date(dep.getTime() - 60_000),
+    arrivalTime: arr,
+    durationSec: 960,
+    transfers: 0,
+    walkSec: 60,
+    summary: line,
+    badges: [],
+    segments: [
+      ...(withWalk ? [{ kind: 'walk' as const, durationSec: 60, distanceM: 50, instruction: '徒歩' }] : []),
+      {
+        kind: 'transit' as const,
+        lineName: line,
+        vehicle: 'SUBWAY' as const,
+        vehicleName: '地下鉄',
+        headsign: '池袋',
+        departureStop: '銀座',
+        arrivalStop: '新宿',
+        departureTime: dep,
+        arrivalTime: arr,
+        numStops: 5,
+        durationSec: 900,
+      },
+    ],
   };
 }
-const route = (dep: Date, line = '丸ノ内線'): RouteLike => ({
-  legs: [{ steps: [{ travelMode: 'WALKING', staticDurationMillis: 60_000, distanceMeters: 50 }, ride(line, dep, new Date(dep.getTime() + 15 * 60_000))] }],
-  durationMillis: 960_000,
-});
 const entry = (dep: Date, line = 'L'): TimetableEntry => ({
   departureTime: dep,
   arrivalTime: new Date(dep.getTime() + 600_000),
@@ -40,13 +49,14 @@ const entry = (dep: Date, line = 'L'): TimetableEntry => ({
 
 describe('timetable', () => {
   it('planToEntry uses the first ride as the departure', () => {
-    const e = planToEntry(route(t(8, 5)), 0);
+    const e = planToEntry(plan(t(8, 5)));
     expect(e).toMatchObject({ lineName: '丸ノ内線', departureStop: '銀座', arrivalStop: '新宿', transfers: 0, vehicle: 'SUBWAY' });
     expect(e?.departureTime).toEqual(t(8, 5));
   });
 
-  it('planToEntry returns null for walk-only routes', () => {
-    expect(planToEntry({ legs: [{ steps: [{ travelMode: 'WALKING' }] }] }, 0)).toBeNull();
+  it('planToEntry returns null for walk-only plans', () => {
+    const walkOnly: TransitPlan = { ...plan(t(8, 0)), segments: [{ kind: 'walk', durationSec: 600, distanceM: 800, instruction: '徒歩' }] };
+    expect(planToEntry(walkOnly)).toBeNull();
   });
 
   it('mergeEntries dedupes and sorts', () => {
@@ -62,9 +72,9 @@ describe('timetable', () => {
 
   it('collectTimetable walks forward and stops when nothing new arrives', async () => {
     const fetcher = vi.fn(async (dep: Date) => {
-      if (dep.getTime() <= t(8, 0).getTime()) return [route(t(8, 2)), route(t(8, 6))];
-      if (dep.getTime() <= t(8, 7).getTime()) return [route(t(8, 10))];
-      return [route(t(8, 10))];
+      if (dep.getTime() <= t(8, 0).getTime()) return [plan(t(8, 2)), plan(t(8, 6))];
+      if (dep.getTime() <= t(8, 7).getTime()) return [plan(t(8, 10))];
+      return [plan(t(8, 10))];
     });
     const progress = vi.fn();
     const result = await collectTimetable(fetcher, t(8, 0), 6, progress);
@@ -77,7 +87,7 @@ describe('timetable', () => {
 
   it('collectTimetable respects maxQueries and rethrows only the first failure', async () => {
     let n = 0;
-    const fetcher = vi.fn(async (dep: Date) => [route(new Date(dep.getTime() + 60_000 * ++n))]);
+    const fetcher = vi.fn(async (dep: Date) => [plan(new Date(dep.getTime() + 60_000 * ++n))]);
     const r = await collectTimetable(fetcher, t(8, 0), 2);
     expect(fetcher).toHaveBeenCalledTimes(2);
     expect(r).toHaveLength(2);
@@ -87,7 +97,7 @@ describe('timetable', () => {
     let calls = 0;
     const flaky = async (dep: Date) => {
       if (calls++ === 1) throw new Error('later');
-      return [route(dep)];
+      return [plan(dep)];
     };
     const partial = await collectTimetable(flaky, t(8, 0), 4);
     expect(partial).toHaveLength(1);

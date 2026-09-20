@@ -5,11 +5,13 @@ import type { Place, TimetableEntry } from '../types';
 import { RouteForm } from '../components/RouteForm';
 import { TimetableView } from '../components/TimetableView';
 import { ErrorDetail } from '../components/ErrorDetail';
-import { buildRequest, describeError, DirectionsError, requestRoutes } from '../lib/directions';
+import { ExternalTransitLinks } from '../components/ExternalTransitLinks';
+import { NavitimeKeyNotice } from '../components/NavitimeKeyNotice';
 import { collectTimetable } from '../lib/timetable';
 import { resolvePair } from '../lib/places';
+import { buildNavitimeParams, fetchNavitimeRoutes, NAVITIME_MESSAGES, navitimeToPlans, NavitimeError } from '../lib/navitime';
 import { paramsToQuery, queryToParams } from '../lib/query';
-import { TIMETABLE_MAX_QUERIES } from '../config';
+import { getNavitimeKey, TIMETABLE_MAX_QUERIES } from '../config';
 import { formatDateJa, formatTime, fromDateTimeLocal, toDateTimeLocal } from '../lib/format';
 
 export function TimetablePage() {
@@ -22,17 +24,19 @@ export function TimetablePage() {
   const [loading, setLoading] = useState(false);
   const [progress, setProgress] = useState(0);
   const [error, setError] = useState<string | undefined>();
+  const [errorStatus, setErrorStatus] = useState<string | undefined>();
   const [errorDetail, setErrorDetail] = useState<string | undefined>();
   const [searchedAt, setSearchedAt] = useState<Date | undefined>();
-  const routesLib = useMapsLibrary('routes');
   const placesLib = useMapsLibrary('places');
+  const hasKey = !!getNavitimeKey();
 
   const submit = async () => {
-    if (!from || !to || !routesLib) return;
-    const RouteCls = routesLib.Route;
+    if (!from || !to) return;
+    const key = getNavitimeKey();
     const start = fromDateTimeLocal(time) ?? new Date();
     setLoading(true);
     setError(undefined);
+    setErrorStatus(undefined);
     setErrorDetail(undefined);
     setEntries([]);
     setProgress(0);
@@ -42,14 +46,12 @@ export function TimetablePage() {
       const resolved = await resolvePair(placesLib, from, to);
       setFrom(resolved.from);
       setTo(resolved.to);
+      if (!key) throw new NavitimeError('NO_PROVIDER', NAVITIME_MESSAGES.NO_PROVIDER);
+      const f = resolved.from.location;
+      const t = resolved.to.location;
+      if (!f || !t) throw new NavitimeError('RESOLVE', NAVITIME_MESSAGES.RESOLVE);
       const result = await collectTimetable(
-        async (dep) => {
-          const req = buildRequest(
-            { from: resolved.from, to: resolved.to, mode: 'TRANSIT', time: toDateTimeLocal(dep), timeType: 'departure' },
-            { alternatives: true },
-          );
-          return requestRoutes(RouteCls, req);
-        },
+        async (dep) => navitimeToPlans(await fetchNavitimeRoutes(key, buildNavitimeParams(f, t, 'departure', toDateTimeLocal(dep), 5))),
         start,
         TIMETABLE_MAX_QUERIES,
         (list, done) => {
@@ -59,8 +61,15 @@ export function TimetablePage() {
       );
       setEntries(result);
     } catch (err) {
-      setError(err instanceof DirectionsError ? err.message : '時刻表を取得できませんでした。');
-      setErrorDetail(err instanceof DirectionsError ? err.detail : describeError(err));
+      if (err instanceof NavitimeError) {
+        setError(err.message);
+        setErrorStatus(err.status);
+        setErrorDetail(err.detail);
+      } else {
+        setError('時刻表を取得できませんでした。');
+        setErrorStatus('SERVER');
+        setErrorDetail(err instanceof Error ? `${err.name} ${err.message}` : String(err));
+      }
     } finally {
       setLoading(false);
     }
@@ -69,7 +78,7 @@ export function TimetablePage() {
   return (
     <div className="page">
       <div className="alert info">
-        出発駅から到着駅への直近の出発便を表示します（Google の経路検索を最大 {TIMETABLE_MAX_QUERIES} 回呼び出します）。
+        出発駅から到着駅への直近の出発便を表示します（NAVITIME API を最大 {TIMETABLE_MAX_QUERIES} 回呼び出すため、無料枠を消費します）。
       </div>
       <RouteForm
         from={from}
@@ -101,9 +110,20 @@ export function TimetablePage() {
           </button>
         </div>
       </div>
-      {error && (
+      {!hasKey && !error && <NavitimeKeyNotice compact />}
+      {error && errorStatus === 'NO_PROVIDER' && from && to && (
+        <>
+          <div className="alert info">
+            {from.name} → {to.name} の時刻表・乗換案内を、外部サービスで開けます。
+            <ExternalTransitLinks from={from} to={to} time={time} timeType="departure" />
+          </div>
+          <NavitimeKeyNotice />
+        </>
+      )}
+      {error && errorStatus !== 'NO_PROVIDER' && (
         <div className="alert error">
           {error}
+          {from && to && <ExternalTransitLinks from={from} to={to} time={time} timeType="departure" />}
           <ErrorDetail detail={errorDetail} />
         </div>
       )}
@@ -112,7 +132,7 @@ export function TimetablePage() {
           <span className="spinner" /> 出発便を取得中… ({progress}/{TIMETABLE_MAX_QUERIES})
         </div>
       )}
-      {(entries.length > 0 || (!loading && searchedAt)) && from && to && (
+      {(entries.length > 0 || (!loading && searchedAt && !error)) && from && to && (
         <div className="card">
           <h2>
             {from.name} → {to.name}
@@ -123,6 +143,7 @@ export function TimetablePage() {
             </div>
           )}
           <TimetableView entries={entries} />
+          <p style={{ fontSize: 12, color: 'var(--color-text-muted)', marginBottom: 0 }}>乗換データ: NAVITIME API</p>
         </div>
       )}
     </div>

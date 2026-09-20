@@ -69,7 +69,11 @@ export function ApiKeyNotice() {
           </li>
         </ol>
         <p className="alert info">
-          お気に入り・履歴はキーが無くても利用できますが、地図・経路検索・スポット検索には API キーが必要です。
+          お気に入り・履歴はキーが無くても利用できますが、地図・徒歩／車ルート・スポット検索には API キーが必要です。
+        </p>
+        <p className="alert warn" style={{ marginBottom: 0 }}>
+          電車・バスの乗換案内は Google の API が日本に対応していないため、別途 NAVITIME API（RapidAPI、月 500 回まで無料）のキーを後からマイページで設定します。設定しない場合は
+          Google マップ・Yahoo!乗換案内に検索条件を引き渡します。
         </p>
       </div>
     </div>

@@ -1,10 +1,7 @@
-import type { TimetableEntry, TransitSegment } from '../types';
-import type { RouteLike } from './transit';
-import { routeToPlan } from './transit';
+import type { TimetableEntry, TransitPlan, TransitSegment } from '../types';
 
-/** TransitPlan から時刻表エントリ（最初の乗車区間を基準）を作る */
-export function planToEntry(route: RouteLike, index: number): TimetableEntry | null {
-  const plan = routeToPlan(route, index);
+/** TransitPlan から時刻表エントリ（最初の乗車区間を基準）を作る。乗車が無ければ null。 */
+export function planToEntry(plan: TransitPlan): TimetableEntry | null {
   const transit = plan.segments.filter((s): s is TransitSegment => s.kind === 'transit');
   const first = transit[0];
   if (!first) return null;
@@ -53,11 +50,11 @@ export function nextDepartureAfter(entries: TimetableEntry[], fallback: Date): D
 }
 
 /**
- * Directions(TRANSIT) を departureTime をずらしながら複数回呼び、直近の出発一覧を作る。
- * fetchRoutes は 1 回分の問い合わせ（テスト差し替え用）。
+ * 乗換検索を出発時刻をずらしながら複数回呼び、直近の出発一覧を作る。
+ * fetchPlans は 1 回分の問い合わせ（データ源に依存しない。テスト差し替え用）。
  */
 export async function collectTimetable(
-  fetchRoutes: (departureTime: Date) => Promise<RouteLike[]>,
+  fetchPlans: (departureTime: Date) => Promise<TransitPlan[]>,
   start: Date,
   maxQueries: number,
   onProgress?: (entries: TimetableEntry[], done: number) => void,
@@ -65,14 +62,14 @@ export async function collectTimetable(
   let entries: TimetableEntry[] = [];
   let cursor = start;
   for (let i = 0; i < maxQueries; i++) {
-    let routes: RouteLike[] = [];
+    let plans: TransitPlan[] = [];
     try {
-      routes = await fetchRoutes(cursor);
+      plans = await fetchPlans(cursor);
     } catch (err) {
       if (i === 0) throw err;
       break;
     }
-    const batch = routes.map((r, idx) => planToEntry(r, idx)).filter((e): e is TimetableEntry => e !== null);
+    const batch = plans.map(planToEntry).filter((e): e is TimetableEntry => e !== null);
     const before = entries.length;
     entries = mergeEntries([entries, batch]);
     onProgress?.(entries, i + 1);

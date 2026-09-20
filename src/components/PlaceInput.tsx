@@ -157,10 +157,10 @@ export function PlaceInput({ value, placeholder, onChange, onLocate, locating, a
           onChange={(e) => setText(e.target.value)}
           onFocus={() => suggestions.length > 0 && setOpen(true)}
           onBlur={() => {
-            // 候補クリックを先に処理させるため少し遅らせる
-            window.setTimeout(() => {
-              if (!open) commitText();
-            }, 150);
+            // 候補のクリックは onMouseDown で preventDefault しているので blur は起きない。
+            // それ以外（検索ボタンのタップ等）ではその場で確定し、1 回のタップで検索できるようにする。
+            setOpen(false);
+            commitText();
           }}
           onKeyDown={(e) => {
             if (open && e.key === 'ArrowDown') {

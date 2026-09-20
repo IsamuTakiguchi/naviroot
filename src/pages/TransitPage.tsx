@@ -7,10 +7,11 @@ import { TransitDetail } from '../components/TransitDetail';
 import { HistoryList } from '../components/HistoryList';
 import { MapView } from '../components/MapView';
 import { ErrorDetail } from '../components/ErrorDetail';
-import { useDirections } from '../hooks/useDirections';
+import { ExternalTransitLinks } from '../components/ExternalTransitLinks';
+import { NavitimeKeyNotice } from '../components/NavitimeKeyNotice';
+import { useTransitSearch } from '../hooks/useTransitSearch';
 import { useHistory } from '../hooks/useHistory';
 import { useFavorites } from '../hooks/useFavorites';
-import { resultToPlans } from '../lib/transit';
 import { paramsToQuery, queryToParams } from '../lib/query';
 import { formatDateJa, formatTime } from '../lib/format';
 
@@ -22,13 +23,13 @@ export function TransitPage() {
   const [to, setTo] = useState<Place | undefined>(initial.to);
   const [time, setTime] = useState<string | undefined>(initial.time);
   const [timeType, setTimeType] = useState<TimeType>(initial.timeType ?? 'departure');
-  const [plans, setPlans] = useState<TransitPlan[]>([]);
   const [selected, setSelected] = useState<TransitPlan | undefined>();
   const [showMap, setShowMap] = useState(false);
-  const directions = useDirections();
+  const transit = useTransitSearch();
   const history = useHistory();
   const favorites = useFavorites();
   const lastRun = useRef<string>('');
+  const plans = transit.plans;
 
   const run = useCallback(
     async (q: RouteQuery) => {
@@ -36,7 +37,7 @@ export function TransitPage() {
       setShowMap(false);
       let resolvedFrom = q.from;
       let resolvedTo = q.to;
-      const result = await directions.search(q, {
+      const result = await transit.search(q, {
         onResolved: (f, t) => {
           resolvedFrom = f;
           resolvedTo = t;
@@ -44,31 +45,33 @@ export function TransitPage() {
           setTo(t);
         },
       });
-      if (!result) {
-        setPlans([]);
-        return;
-      }
-      const p = resultToPlans(result);
-      setPlans(p);
-      history.add(resolvedFrom, resolvedTo, 'TRANSIT');
+      if (result) history.add(resolvedFrom, resolvedTo, 'TRANSIT');
     },
-    [directions, history],
+    [transit, history],
   );
 
-  // URL に条件が揃っていれば自動検索（共有リンク・履歴からの遷移）
+  // URL に条件が揃っていれば自動検索（共有リンク・履歴からの遷移）。
+  // Places ライブラリの読み込みを待つが、Google Maps が読み込めない環境でも外部サービスへの引き渡しはできるよう、数秒で諦めて実行する。
   useEffect(() => {
-    if (!directions.ready) return;
     const q = paramsToQuery(params);
     if (!q.from?.name || !q.to?.name) return;
     const key = params.toString();
     if (lastRun.current === key) return;
-    lastRun.current = key;
-    setFrom(q.from);
-    setTo(q.to);
-    setTime(q.time);
-    setTimeType(q.timeType ?? 'departure');
-    void run({ from: q.from, to: q.to, mode: 'TRANSIT', time: q.time, timeType: q.timeType ?? 'departure' });
-  }, [params, directions.ready, run]);
+    const start = () => {
+      lastRun.current = key;
+      setFrom(q.from);
+      setTo(q.to);
+      setTime(q.time);
+      setTimeType(q.timeType ?? 'departure');
+      void run({ from: q.from!, to: q.to!, mode: 'TRANSIT', time: q.time, timeType: q.timeType ?? 'departure' });
+    };
+    if (transit.ready) {
+      start();
+      return;
+    }
+    const timer = window.setTimeout(start, 4000);
+    return () => window.clearTimeout(timer);
+  }, [params, transit.ready, run]);
 
   const submit = () => {
     if (!from || !to) return;
@@ -89,6 +92,7 @@ export function TransitPage() {
 
   const baseDate = time ? new Date(time) : new Date();
   const isFav = from && to ? favorites.hasRoute(from, to, 'TRANSIT') : false;
+  const showExternal = !!(from && to) && !!transit.error;
 
   return (
     <div className="page">
@@ -105,13 +109,14 @@ export function TransitPage() {
         }}
         showTime
         onSubmit={submit}
-        loading={directions.loading}
+        loading={transit.loading}
       />
 
-      {directions.error && (
+      {transit.error && transit.errorStatus !== 'NO_PROVIDER' && (
         <div className="alert error">
-          {directions.error}
-          {directions.errorStatus === 'ZERO_RESULTS' && from && to && (
+          {transit.error}
+          {showExternal && from && to && <ExternalTransitLinks from={from} to={to} time={time} timeType={timeType} />}
+          {transit.errorStatus === 'ZERO_RESULTS' && from && to && (
             <div style={{ marginTop: 8 }}>
               <button
                 type="button"
@@ -124,16 +129,27 @@ export function TransitPage() {
               </button>
             </div>
           )}
-          <ErrorDetail detail={directions.errorDetail} />
+          <ErrorDetail detail={transit.errorDetail} />
         </div>
       )}
-      {directions.loading && (
+
+      {transit.errorStatus === 'NO_PROVIDER' && from && to && (
+        <>
+          <div className="alert info">
+            {from.name} → {to.name} の乗換案内を、外部サービスで開けます。
+            <ExternalTransitLinks from={from} to={to} time={time} timeType={timeType} />
+          </div>
+          <NavitimeKeyNotice />
+        </>
+      )}
+
+      {transit.loading && (
         <div className="loading">
           <span className="spinner" /> 経路を検索しています…
         </div>
       )}
 
-      {!directions.loading && plans.length > 0 && from && to && (
+      {!transit.loading && plans.length > 0 && from && to && (
         <>
           <div className="section-title">
             {formatDateJa(baseDate)}{' '}
@@ -170,11 +186,17 @@ export function TransitPage() {
           ) : (
             <TransitResultList plans={plans} onSelect={openMap} />
           )}
+          <p style={{ fontSize: 12, color: 'var(--color-text-muted)' }}>乗換データ: NAVITIME API</p>
         </>
       )}
 
-      {!directions.loading && plans.length === 0 && !directions.error && (
+      {!transit.loading && plans.length === 0 && !transit.error && (
         <>
+          {!transit.hasKey && (
+            <div className="alert info" style={{ fontSize: 13 }}>
+              乗換案内は NAVITIME API キーを設定するとアプリ内に表示されます。未設定の場合は検索後に Google マップ・Yahoo!乗換案内へ引き渡します。
+            </div>
+          )}
           {history.history.length > 0 && (
             <>
               <div className="section-title">最近の検索</div>
