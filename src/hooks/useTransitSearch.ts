@@ -3,14 +3,7 @@ import { useMapsLibrary } from '@vis.gl/react-google-maps';
 import type { Place, RouteQuery, TransitPlan } from '../types';
 import { getNavitimeKey } from '../config';
 import { resolvePair } from '../lib/places';
-import {
-  buildNavitimeParams,
-  fetchNavitimeRoutes,
-  NAVITIME_MESSAGES,
-  navitimeToPlans,
-  NavitimeError,
-  type NavitimeStatus,
-} from '../lib/navitime';
+import { buildNavitimeParams, NAVITIME_MESSAGES, NavitimeError, requestNavitimePlans, type NavitimeStatus } from '../lib/navitime';
 
 export interface TransitSearchState {
   loading: boolean;
@@ -38,10 +31,9 @@ export function useTransitSearch() {
         if (!key) throw new NavitimeError('NO_PROVIDER', NAVITIME_MESSAGES.NO_PROVIDER);
         if (!from.location || !to.location) throw new NavitimeError('RESOLVE', NAVITIME_MESSAGES.RESOLVE);
         const params = buildNavitimeParams(from.location, to.location, query.timeType, query.time);
-        const json = await fetchNavitimeRoutes(key, params);
+        const plans = await requestNavitimePlans(key, params);
         if (my !== seq.current) return undefined;
-        const plans = navitimeToPlans(json);
-        if (plans.length === 0) throw new NavitimeError('ZERO_RESULTS', NAVITIME_MESSAGES.ZERO_RESULTS, JSON.stringify(json).slice(0, 300));
+        if (plans.length === 0) throw new NavitimeError('ZERO_RESULTS', NAVITIME_MESSAGES.ZERO_RESULTS, 'items=0');
         setState({ loading: false, plans });
         return plans;
       } catch (err) {

@@ -113,7 +113,6 @@ export function buildNavitimeParams(
     limit: String(limit),
     datum: 'wgs84',
     coord_unit: 'degree',
-    lang: 'ja',
     shape: 'true',
   };
   const t = toNavitimeTime(time);
@@ -132,6 +131,44 @@ export function buildNavitimeParams(
       params.start_time = t;
   }
   return params;
+}
+
+/**
+ * RapidAPI の契約（Basic プラン）に含まれないオプションを付けると
+ * 400 "bad usage on this contract : <オプション名>" が返る。再試行時に外す任意パラメータ。
+ * （`lang` は Multilingual オプション扱いのため最初から送らない）
+ */
+export const OPTIONAL_PARAMS = ['shape', 'shape_color', 'datum', 'coord_unit', 'lang', 'options', 'walk_route', 'walk_speed'];
+
+export function stripOptionalParams(params: Record<string, string>): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const [k, v] of Object.entries(params)) if (!OPTIONAL_PARAMS.includes(k)) out[k] = v;
+  return out;
+}
+
+export function isContractError(err: unknown): boolean {
+  return err instanceof NavitimeError && err.status === 'INVALID' && /contract/i.test(err.detail ?? '');
+}
+
+/**
+ * 乗換検索を実行して TransitPlan[] を返す。
+ * 契約外オプションによる 400 の場合は、任意パラメータを外して 1 回だけ再試行する。
+ */
+export async function requestNavitimePlans(
+  key: string,
+  params: Record<string, string>,
+  fetchImpl: typeof fetch = fetch,
+  now: Date = new Date(),
+): Promise<TransitPlan[]> {
+  let json: NavitimeResponse;
+  try {
+    json = await fetchNavitimeRoutes(key, params, fetchImpl);
+  } catch (err) {
+    const stripped = stripOptionalParams(params);
+    if (!isContractError(err) || Object.keys(stripped).length === Object.keys(params).length) throw err;
+    json = await fetchNavitimeRoutes(key, stripped, fetchImpl);
+  }
+  return navitimeToPlans(json, now);
 }
 
 export function navitimeUrl(params: Record<string, string>): string {

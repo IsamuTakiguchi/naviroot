@@ -6,7 +6,9 @@ import {
   navitimeToPlans,
   navitimeUrl,
   NavitimeError,
+  requestNavitimePlans,
   shapesToPath,
+  stripOptionalParams,
   vehicleFromMove,
   type NavitimeItem,
 } from './navitime';
@@ -73,7 +75,9 @@ describe('navitime', () => {
     const from = { lat: 34.69, lng: 135.76 };
     const to = { lat: 34.7, lng: 135.75 };
     const dep = buildNavitimeParams(from, to, 'departure', '2026-09-20T14:00');
-    expect(dep).toMatchObject({ start: '34.69,135.76', goal: '34.7,135.75', start_time: '2026-09-20T14:00:00', limit: '5', datum: 'wgs84', lang: 'ja', shape: 'true' });
+    expect(dep).toMatchObject({ start: '34.69,135.76', goal: '34.7,135.75', start_time: '2026-09-20T14:00:00', limit: '5', datum: 'wgs84', shape: 'true' });
+    expect(dep.lang).toBeUndefined();
+    expect(stripOptionalParams(dep)).toEqual({ start: '34.69,135.76', goal: '34.7,135.75', start_time: '2026-09-20T14:00:00', limit: '5' });
     expect(buildNavitimeParams(from, to, 'arrival', '2026-09-20T14:00').goal_time).toBe('2026-09-20T14:00:00');
     expect(buildNavitimeParams(from, to, 'first', '2026-09-20T14:00').first_operation).toBe('2026-09-20');
     expect(buildNavitimeParams(from, to, 'last', '2026-09-20T14:00').last_operation).toBe('2026-09-20');
@@ -124,6 +128,33 @@ describe('navitime', () => {
     expect(plans[1].badges).toContain('fastest');
     expect(plans[0].badges).toContain('cheapest');
     expect(navitimeToPlans({})).toEqual([]);
+  });
+
+  it('requestNavitimePlans retries without optional params on a contract error', async () => {
+    const calls: string[] = [];
+    const fetchImpl = vi.fn(async (url: string) => {
+      calls.push(url);
+      if (calls.length === 1) {
+        return new Response(JSON.stringify({ status_code: 400, message: 'bad usage on this contract　:　Multilingual' }), { status: 400, statusText: 'Bad Request' });
+      }
+      return new Response(JSON.stringify({ items: [item()] }), { status: 200, statusText: 'OK' });
+    });
+    const plans = await requestNavitimePlans('KEY', { start: '1,2', goal: '3,4', start_time: '2026-09-20T14:00:00', limit: '5', shape: 'true', datum: 'wgs84' }, fetchImpl as unknown as typeof fetch);
+    expect(plans).toHaveLength(1);
+    expect(calls).toHaveLength(2);
+    expect(calls[0]).toContain('shape=true');
+    expect(calls[1]).not.toContain('shape=');
+    expect(calls[1]).not.toContain('datum=');
+    expect(calls[1]).toContain('start_time=');
+
+    const alwaysBad = vi.fn(async () => new Response(JSON.stringify({ message: 'bad usage on this contract : X' }), { status: 400, statusText: 'Bad Request' }));
+    const err = await requestNavitimePlans('KEY', { start: '1,2', goal: '3,4', shape: 'true' }, alwaysBad as unknown as typeof fetch).catch((e: unknown) => e);
+    expect((err as NavitimeError).status).toBe('INVALID');
+    expect(alwaysBad).toHaveBeenCalledTimes(2);
+
+    const otherBad = vi.fn(async () => new Response(JSON.stringify({ message: 'invalid start_time' }), { status: 400, statusText: 'Bad Request' }));
+    await expect(requestNavitimePlans('KEY', { start: '1,2', goal: '3,4', shape: 'true' }, otherBad as unknown as typeof fetch)).rejects.toMatchObject({ status: 'INVALID' });
+    expect(otherBad).toHaveBeenCalledTimes(1);
   });
 
   it('fetchNavitimeRoutes maps HTTP statuses and counts usage', async () => {

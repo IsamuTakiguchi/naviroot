@@ -9,7 +9,7 @@ import { ExternalTransitLinks } from '../components/ExternalTransitLinks';
 import { NavitimeKeyNotice } from '../components/NavitimeKeyNotice';
 import { collectTimetable } from '../lib/timetable';
 import { resolvePair } from '../lib/places';
-import { buildNavitimeParams, fetchNavitimeRoutes, NAVITIME_MESSAGES, navitimeToPlans, NavitimeError } from '../lib/navitime';
+import { buildNavitimeParams, NAVITIME_MESSAGES, NavitimeError, requestNavitimePlans } from '../lib/navitime';
 import { paramsToQuery, queryToParams } from '../lib/query';
 import { getNavitimeKey, TIMETABLE_MAX_QUERIES } from '../config';
 import { formatDateJa, formatTime, fromDateTimeLocal, toDateTimeLocal } from '../lib/format';
@@ -51,7 +51,7 @@ export function TimetablePage() {
       const t = resolved.to.location;
       if (!f || !t) throw new NavitimeError('RESOLVE', NAVITIME_MESSAGES.RESOLVE);
       const result = await collectTimetable(
-        async (dep) => navitimeToPlans(await fetchNavitimeRoutes(key, buildNavitimeParams(f, t, 'departure', toDateTimeLocal(dep), 5))),
+        async (dep) => requestNavitimePlans(key, buildNavitimeParams(f, t, 'departure', toDateTimeLocal(dep), 5)),
         start,
         TIMETABLE_MAX_QUERIES,
         (list, done) => {
