@@ -1,5 +1,5 @@
 import type { TransitPlan, PlanBadge } from '../types';
-import { formatDuration, formatFare, formatTime } from '../lib/format';
+import { formatDuration, formatFare, formatTime, VEHICLE_ICON } from '../lib/format';
 
 const BADGE_LABEL: Record<PlanBadge, string> = { fastest: '早', cheapest: '安', easiest: '楽' };
 
@@ -57,7 +57,7 @@ export function TransitResultList({ plans, selectedId, onSelect }: Props) {
                 </span>
               ) : (
                 <span key={j} className="line-pill" style={{ borderLeftColor: s.lineColor ?? undefined }}>
-                  {s.lineShortName ?? s.lineName}
+                  {VEHICLE_ICON[s.vehicle]} {s.lineShortName ?? s.lineName}
                 </span>
               ),
             )}

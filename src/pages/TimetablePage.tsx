@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useMapsLibrary } from '@vis.gl/react-google-maps';
-import type { Place, TimetableEntry } from '../types';
+import type { Place, TimetableEntry, TransitFilter } from '../types';
 import { RouteForm } from '../components/RouteForm';
 import { TimetableView } from '../components/TimetableView';
 import { ErrorDetail } from '../components/ErrorDetail';
@@ -20,6 +20,7 @@ export function TimetablePage() {
   const [from, setFrom] = useState<Place | undefined>(initial.from);
   const [to, setTo] = useState<Place | undefined>(initial.to);
   const [time, setTime] = useState<string | undefined>(initial.time);
+  const [filter, setFilter] = useState<TransitFilter>(initial.filter ?? 'all');
   const [entries, setEntries] = useState<TimetableEntry[]>([]);
   const [loading, setLoading] = useState(false);
   const [progress, setProgress] = useState(0);
@@ -41,7 +42,7 @@ export function TimetablePage() {
     setEntries([]);
     setProgress(0);
     setSearchedAt(start);
-    setParams(queryToParams({ from, to, mode: 'TRANSIT', time, timeType: 'departure' }));
+    setParams(queryToParams({ from, to, mode: 'TRANSIT', time, timeType: 'departure', filter }));
     try {
       const resolved = await resolvePair(placesLib, from, to);
       setFrom(resolved.from);
@@ -51,7 +52,7 @@ export function TimetablePage() {
       const t = resolved.to.location;
       if (!f || !t) throw new NavitimeError('RESOLVE', NAVITIME_MESSAGES.RESOLVE);
       const result = await collectTimetable(
-        async (dep) => requestNavitimePlans(key, buildNavitimeParams(f, t, 'departure', toDateTimeLocal(dep), 5)),
+        async (dep) => requestNavitimePlans(key, buildNavitimeParams(f, t, 'departure', toDateTimeLocal(dep), 5, filter)),
         start,
         TIMETABLE_MAX_QUERIES,
         (list, done) => {
@@ -89,6 +90,8 @@ export function TimetablePage() {
         timeType="departure"
         onTimeChange={(t) => setTime(t)}
         showTime={false}
+        filter={filter}
+        onFilterChange={setFilter}
         onSubmit={() => void submit()}
         submitLabel="出発時刻を調べる"
         loading={loading}

@@ -17,6 +17,9 @@ export type TravelMode = 'TRANSIT' | 'WALKING' | 'DRIVING' | 'BICYCLING';
 
 export type TimeType = 'departure' | 'arrival' | 'first' | 'last';
 
+/** 乗換案内で使う交通手段の絞り込み */
+export type TransitFilter = 'all' | 'bus' | 'train' | 'no_express';
+
 export interface RouteQuery {
   from: Place;
   to: Place;
@@ -24,6 +27,8 @@ export interface RouteQuery {
   /** ISO 文字列（ローカル時刻）。first/last では日付のみ意味を持つ */
   time?: string;
   timeType: TimeType;
+  /** 乗換案内のみ。省略時は 'all' */
+  filter?: TransitFilter;
 }
 
 export type TransitVehicle = 'BUS' | 'RAIL' | 'SUBWAY' | 'TRAIN' | 'TRAM' | 'OTHER';

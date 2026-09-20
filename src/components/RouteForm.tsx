@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import type { Place, TimeType } from '../types';
+import type { Place, TimeType, TransitFilter } from '../types';
+import { FILTER_LABEL } from '../lib/navitime';
 import { PlaceInput } from './PlaceInput';
 import { useGeolocation } from '../hooks/useGeolocation';
 import { useFavorites } from '../hooks/useFavorites';
@@ -14,10 +15,20 @@ interface Props {
   timeType?: TimeType;
   onTimeChange?: (time: string | undefined, timeType: TimeType) => void;
   showTime?: boolean;
+  /** 交通手段の絞り込み（指定するとチップを表示） */
+  filter?: TransitFilter;
+  onFilterChange?: (f: TransitFilter) => void;
   onSubmit: () => void;
   submitLabel?: string;
   loading?: boolean;
 }
+
+const FILTERS: { key: TransitFilter; icon: string }[] = [
+  { key: 'all', icon: '🚃🚌' },
+  { key: 'bus', icon: '🚌' },
+  { key: 'train', icon: '🚃' },
+  { key: 'no_express', icon: '🚄' },
+];
 
 const TIME_TYPES: { key: TimeType; label: string }[] = [
   { key: 'departure', label: '出発' },
@@ -27,8 +38,20 @@ const TIME_TYPES: { key: TimeType; label: string }[] = [
 ];
 
 export function RouteForm(props: Props) {
-  const { from, to, onFromChange, onToChange, time, timeType = 'departure', onTimeChange, showTime, onSubmit, loading } =
-    props;
+  const {
+    from,
+    to,
+    onFromChange,
+    onToChange,
+    time,
+    timeType = 'departure',
+    onTimeChange,
+    showTime,
+    filter = 'all',
+    onFilterChange,
+    onSubmit,
+    loading,
+  } = props;
   const geo = useGeolocation();
   const { home, work } = useFavorites();
   const [locatingFor, setLocatingFor] = useState<'from' | 'to' | null>(null);
@@ -143,6 +166,22 @@ export function RouteForm(props: Props) {
           <button type="button" className="btn small" onClick={() => onTimeChange(undefined, timeType)}>
             現在時刻
           </button>
+        </div>
+      )}
+      {onFilterChange && (
+        <div className="chips" style={{ marginTop: 10 }} role="radiogroup" aria-label="交通手段">
+          {FILTERS.map((f) => (
+            <button
+              key={f.key}
+              type="button"
+              role="radio"
+              aria-checked={filter === f.key}
+              className={`chip ${filter === f.key ? 'active' : ''}`}
+              onClick={() => onFilterChange(f.key)}
+            >
+              {f.icon} {FILTER_LABEL[f.key]}
+            </button>
+          ))}
         </div>
       )}
       <button type="submit" className="btn primary block" style={{ marginTop: 12 }} disabled={!canSubmit}>

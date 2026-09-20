@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import type { Place, RouteQuery, TimeType, TransitPlan } from '../types';
+import type { Place, RouteQuery, TimeType, TransitFilter, TransitPlan } from '../types';
 import { RouteForm } from '../components/RouteForm';
 import { TransitResultList } from '../components/TransitResultList';
 import { TransitDetail } from '../components/TransitDetail';
@@ -14,6 +14,7 @@ import { useHistory } from '../hooks/useHistory';
 import { useFavorites } from '../hooks/useFavorites';
 import { paramsToQuery, queryToParams } from '../lib/query';
 import { formatDateJa, formatTime } from '../lib/format';
+import { FILTER_LABEL } from '../lib/navitime';
 
 export function TransitPage() {
   const [params, setParams] = useSearchParams();
@@ -23,6 +24,7 @@ export function TransitPage() {
   const [to, setTo] = useState<Place | undefined>(initial.to);
   const [time, setTime] = useState<string | undefined>(initial.time);
   const [timeType, setTimeType] = useState<TimeType>(initial.timeType ?? 'departure');
+  const [filter, setFilter] = useState<TransitFilter>(initial.filter ?? 'all');
   const [selected, setSelected] = useState<TransitPlan | undefined>();
   const [showMap, setShowMap] = useState(false);
   const transit = useTransitSearch();
@@ -63,7 +65,8 @@ export function TransitPage() {
       setTo(q.to);
       setTime(q.time);
       setTimeType(q.timeType ?? 'departure');
-      void run({ from: q.from!, to: q.to!, mode: 'TRANSIT', time: q.time, timeType: q.timeType ?? 'departure' });
+      setFilter(q.filter ?? 'all');
+      void run({ from: q.from!, to: q.to!, mode: 'TRANSIT', time: q.time, timeType: q.timeType ?? 'departure', filter: q.filter ?? 'all' });
     };
     if (transit.ready) {
       start();
@@ -75,7 +78,7 @@ export function TransitPage() {
 
   const submit = () => {
     if (!from || !to) return;
-    const q: RouteQuery = { from, to, mode: 'TRANSIT', time, timeType };
+    const q: RouteQuery = { from, to, mode: 'TRANSIT', time, timeType, filter };
     const next = queryToParams(q);
     if (next.toString() === params.toString()) {
       lastRun.current = next.toString();
@@ -108,6 +111,8 @@ export function TransitPage() {
           setTimeType(tt);
         }}
         showTime
+        filter={filter}
+        onFilterChange={setFilter}
         onSubmit={submit}
         loading={transit.loading}
       />
@@ -154,7 +159,7 @@ export function TransitPage() {
           <div className="section-title">
             {formatDateJa(baseDate)}{' '}
             {timeType === 'first' ? '始発' : timeType === 'last' ? '終電' : `${formatTime(baseDate)} ${timeType === 'arrival' ? '到着' : '出発'}`}
-            ・ {plans.length}件
+            ・ {FILTER_LABEL[filter]} ・ {plans.length}件
           </div>
           {selected ? (
             <>

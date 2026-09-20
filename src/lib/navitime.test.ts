@@ -77,7 +77,15 @@ describe('navitime', () => {
     const dep = buildNavitimeParams(from, to, 'departure', '2026-09-20T14:00');
     expect(dep).toMatchObject({ start: '34.69,135.76', goal: '34.7,135.75', start_time: '2026-09-20T14:00:00', limit: '5', datum: 'wgs84', shape: 'true' });
     expect(dep.lang).toBeUndefined();
+    expect(dep.bus_data).toBe('timetable');
+    expect(dep.unuse).toBeUndefined();
     expect(stripOptionalParams(dep)).toEqual({ start: '34.69,135.76', goal: '34.7,135.75', start_time: '2026-09-20T14:00:00', limit: '5' });
+    expect(buildNavitimeParams(from, to, 'departure', '2026-09-20T14:00', 5, 'bus').unuse).toBe(
+      'local_train.rapid_train.semiexpress_train.express_train.ultraexpress_train.sleeper_ultraexpress.superexpress_train.domestic_flight.ferry',
+    );
+    expect(buildNavitimeParams(from, to, 'departure', '2026-09-20T14:00', 5, 'train').unuse).toBe('local_bus.highway_bus.shuttle_bus');
+    expect(buildNavitimeParams(from, to, 'departure', '2026-09-20T14:00', 5, 'no_express').unuse).toBe('superexpress_train.ultraexpress_train.sleeper_ultraexpress.domestic_flight');
+    expect(stripOptionalParams(buildNavitimeParams(from, to, 'departure', undefined, 5, 'bus')).unuse).toBeDefined();
     expect(buildNavitimeParams(from, to, 'arrival', '2026-09-20T14:00').goal_time).toBe('2026-09-20T14:00:00');
     expect(buildNavitimeParams(from, to, 'first', '2026-09-20T14:00').first_operation).toBe('2026-09-20');
     expect(buildNavitimeParams(from, to, 'last', '2026-09-20T14:00').last_operation).toBe('2026-09-20');

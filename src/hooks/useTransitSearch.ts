@@ -30,7 +30,7 @@ export function useTransitSearch() {
         opts?.onResolved?.(from, to);
         if (!key) throw new NavitimeError('NO_PROVIDER', NAVITIME_MESSAGES.NO_PROVIDER);
         if (!from.location || !to.location) throw new NavitimeError('RESOLVE', NAVITIME_MESSAGES.RESOLVE);
-        const params = buildNavitimeParams(from.location, to.location, query.timeType, query.time);
+        const params = buildNavitimeParams(from.location, to.location, query.timeType, query.time, 5, query.filter ?? 'all');
         const plans = await requestNavitimePlans(key, params);
         if (my !== seq.current) return undefined;
         if (plans.length === 0) throw new NavitimeError('ZERO_RESULTS', NAVITIME_MESSAGES.ZERO_RESULTS, 'items=0');

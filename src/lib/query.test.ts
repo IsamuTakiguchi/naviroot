@@ -15,5 +15,9 @@ describe('query', () => {
     expect(isComplete(back)).toBe(true);
     expect(isComplete(paramsToQuery(new URLSearchParams('mode=BOGUS&timeType=x')))).toBe(false);
     expect(paramsToQuery(new URLSearchParams('mode=BOGUS')).mode).toBeUndefined();
+    expect(queryToParams({ filter: 'all' }).get('filter')).toBeNull();
+    expect(queryToParams({ filter: 'bus' }).get('filter')).toBe('bus');
+    expect(paramsToQuery(new URLSearchParams('filter=bus')).filter).toBe('bus');
+    expect(paramsToQuery(new URLSearchParams('filter=plane')).filter).toBeUndefined();
   });
 });

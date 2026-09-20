@@ -1,4 +1,4 @@
-import type { LatLng, PlanSegment, TimeType, TransitPlan, TransitSegment, TransitVehicle, WalkSegment } from '../types';
+import type { LatLng, PlanSegment, TimeType, TransitFilter, TransitPlan, TransitSegment, TransitVehicle, WalkSegment } from '../types';
 import { formatFare, toDateTimeLocal } from './format';
 import { assignBadges, mergeWalks } from './transit';
 import { bumpNavitimeUsage, NAVITIME_HOST } from '../config';
@@ -100,12 +100,40 @@ function toNavitimeTime(local: string | undefined): string {
   return `${base}:00`;
 }
 
+const TRAIN_TYPES = [
+  'local_train',
+  'rapid_train',
+  'semiexpress_train',
+  'express_train',
+  'ultraexpress_train',
+  'sleeper_ultraexpress',
+  'superexpress_train',
+];
+const BUS_TYPES = ['local_bus', 'highway_bus', 'shuttle_bus'];
+const EXPRESS_TYPES = ['superexpress_train', 'ultraexpress_train', 'sleeper_ultraexpress', 'domestic_flight'];
+
+/** 絞り込み → NAVITIME の unuse（使わない交通手段）パラメータ */
+export const UNUSE_BY_FILTER: Record<TransitFilter, string[]> = {
+  all: [],
+  bus: [...TRAIN_TYPES, 'domestic_flight', 'ferry'],
+  train: [...BUS_TYPES],
+  no_express: EXPRESS_TYPES,
+};
+
+export const FILTER_LABEL: Record<TransitFilter, string> = {
+  all: '電車・バス',
+  bus: 'バスのみ',
+  train: '電車のみ',
+  no_express: '新幹線・特急なし',
+};
+
 export function buildNavitimeParams(
   from: LatLng,
   to: LatLng,
   timeType: TimeType,
   time?: string,
   limit = 5,
+  filter: TransitFilter = 'all',
 ): Record<string, string> {
   const params: Record<string, string> = {
     start: `${from.lat},${from.lng}`,
@@ -114,7 +142,11 @@ export function buildNavitimeParams(
     datum: 'wgs84',
     coord_unit: 'degree',
     shape: 'true',
+    // 路線バスを時刻表ベースで探索に含める
+    bus_data: 'timetable',
   };
+  const unuse = UNUSE_BY_FILTER[filter] ?? [];
+  if (unuse.length) params.unuse = unuse.join('.');
   const t = toNavitimeTime(time);
   const date = t.slice(0, 10);
   switch (timeType) {
@@ -138,7 +170,7 @@ export function buildNavitimeParams(
  * 400 "bad usage on this contract : <オプション名>" が返る。再試行時に外す任意パラメータ。
  * （`lang` は Multilingual オプション扱いのため最初から送らない）
  */
-export const OPTIONAL_PARAMS = ['shape', 'shape_color', 'datum', 'coord_unit', 'lang', 'options', 'walk_route', 'walk_speed'];
+export const OPTIONAL_PARAMS = ['shape', 'shape_color', 'datum', 'coord_unit', 'lang', 'options', 'walk_route', 'walk_speed', 'bus_data'];
 
 export function stripOptionalParams(params: Record<string, string>): Record<string, string> {
   const out: Record<string, string> = {};
