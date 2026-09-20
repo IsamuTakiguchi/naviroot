@@ -47,6 +47,7 @@ Google Maps が API キーを拒否したときの標準ダイアログです。
 | InvalidKeyMapError | キーが間違っている | コンソールのキーをコピーし直す |
 
 経路検索だけ失敗する場合は Routes API、候補が出ない場合は Places API (New) の有効化を確認してください。
+検索エラーの文言の下にある「詳細」を開くと Google からの生のエラーが表示されます。`PERMISSION_DENIED` や `has not been used` / `disabled` を含む場合は、キーのプロジェクトで [Routes API](https://console.cloud.google.com/apis/library/routes.googleapis.com) が未有効です。
 
 ## 開発者向け: ローカルで動かす
 

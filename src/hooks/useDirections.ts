@@ -1,11 +1,13 @@
 import { useCallback, useRef, useState } from 'react';
 import { useMapsLibrary } from '@vis.gl/react-google-maps';
 import type { RouteQuery } from '../types';
-import { buildRequest, DirectionsError, requestRoutes } from '../lib/directions';
+import { buildRequest, describeError, DirectionsError, requestRoutes } from '../lib/directions';
 
 export interface DirectionsState {
   loading: boolean;
   error?: string;
+  /** 生のエラー情報（画面の「詳細」用） */
+  errorDetail?: string;
   result?: google.maps.routes.Route[];
 }
 
@@ -31,7 +33,8 @@ export function useDirections() {
       } catch (err) {
         if (my !== seq.current) return undefined;
         const message = err instanceof DirectionsError ? err.message : '経路検索に失敗しました。';
-        setState({ loading: false, error: message });
+        const errorDetail = err instanceof DirectionsError ? err.detail : describeError(err);
+        setState({ loading: false, error: message, errorDetail });
         return undefined;
       }
     },

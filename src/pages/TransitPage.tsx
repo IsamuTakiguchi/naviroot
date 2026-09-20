@@ -6,6 +6,7 @@ import { TransitResultList } from '../components/TransitResultList';
 import { TransitDetail } from '../components/TransitDetail';
 import { HistoryList } from '../components/HistoryList';
 import { MapView } from '../components/MapView';
+import { ErrorDetail } from '../components/ErrorDetail';
 import { useDirections } from '../hooks/useDirections';
 import { useHistory } from '../hooks/useHistory';
 import { useFavorites } from '../hooks/useFavorites';
@@ -98,7 +99,12 @@ export function TransitPage() {
         loading={directions.loading}
       />
 
-      {directions.error && <div className="alert error">{directions.error}</div>}
+      {directions.error && (
+        <div className="alert error">
+          {directions.error}
+          <ErrorDetail detail={directions.errorDetail} />
+        </div>
+      )}
       {directions.loading && (
         <div className="loading">
           <span className="spinner" /> 経路を検索しています…

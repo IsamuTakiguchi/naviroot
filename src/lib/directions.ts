@@ -6,20 +6,41 @@ export class DirectionsError extends Error {
   constructor(
     public readonly status: string,
     message: string,
+    /** 生のエラー情報（name / code / endpoint / message）。画面の「詳細」に表示する */
+    public readonly detail?: string,
   ) {
     super(message);
     this.name = 'DirectionsError';
   }
 }
 
+/** 例外オブジェクトから人間が読める詳細文字列を作る */
+export function describeError(err: unknown): string {
+  if (err instanceof Error) {
+    const e = err as Error & { code?: unknown; endpoint?: unknown };
+    return [e.name, e.code != null ? `code=${String(e.code)}` : '', e.endpoint != null ? `endpoint=${String(e.endpoint)}` : '', e.message]
+      .filter(Boolean)
+      .join(' ');
+  }
+  if (typeof err === 'object' && err) {
+    try {
+      return JSON.stringify(err);
+    } catch {
+      return String(err);
+    }
+  }
+  return String(err);
+}
+
 const STATUS_MESSAGES: Record<string, string> = {
   ZERO_RESULTS: '経路が見つかりませんでした。出発地・目的地や移動手段、日時を変えてお試しください。',
   NOT_FOUND: '出発地または目的地を特定できませんでした。候補から選ぶか、駅名・住所を確認してください。',
-  INVALID_REQUEST: '検索条件が不正です。出発地と目的地を入力してください。',
+  INVALID_REQUEST:
+    '検索条件が受け付けられませんでした。出発地・目的地を候補から選び直すか、日時（過去や 7 日以上前は指定できません）を確認してください。',
   OVER_QUERY_LIMIT: 'API の利用上限に達しました。しばらくしてからお試しください。',
   REQUEST_DENIED:
-    '経路検索が拒否されました。Google Cloud で Routes API が有効か、API キーの制限で Routes API が許可されているかを確認してください。',
-  UNKNOWN_ERROR: 'サーバーエラーが発生しました。もう一度お試しください。',
+    '経路検索が拒否されました。Google Cloud Console の「API とサービス → ライブラリ」で Routes API を有効化し、API キーの「API の制限」で Routes API が許可されているか確認してください。',
+  UNKNOWN_ERROR: 'Google 側でエラーが発生しました。しばらくしてからもう一度お試しください（下の「詳細」に原因が表示されます）。',
 };
 
 export function messageForStatus(status: string, mode?: TravelMode): string {
@@ -35,8 +56,13 @@ export function statusFromError(err: unknown): string {
   const e = err as { code?: unknown; name?: unknown; message?: unknown };
   const raw = `${String(e.code ?? '')} ${String(e.name ?? '')} ${String(e.message ?? '')}`;
   if (/NOT_FOUND/i.test(raw)) return 'NOT_FOUND';
-  if (/INVALID_ARGUMENT|INVALID_REQUEST/i.test(raw)) return 'INVALID_REQUEST';
-  if (/PERMISSION_DENIED|REQUEST_DENIED|API_KEY|apiNotActivated|not authorized|denied/i.test(raw)) return 'REQUEST_DENIED';
+  if (/INVALID_ARGUMENT|INVALID_REQUEST|FAILED_PRECONDITION|OUT_OF_RANGE/i.test(raw)) return 'INVALID_REQUEST';
+  if (
+    /PERMISSION_DENIED|REQUEST_DENIED|UNAUTHENTICATED|API_KEY|apiNotActivated|not authorized|denied|disabled|has not been used|not enabled|SERVICE_DISABLED/i.test(
+      raw,
+    )
+  )
+    return 'REQUEST_DENIED';
   if (/RESOURCE_EXHAUSTED|OVER_QUERY_LIMIT|quota/i.test(raw)) return 'OVER_QUERY_LIMIT';
   if (/ZERO_RESULTS/i.test(raw)) return 'ZERO_RESULTS';
   return 'UNKNOWN_ERROR';
@@ -75,20 +101,10 @@ export function resolveTimeOption(query: RouteQuery): { departureTime?: Date; ar
   }
 }
 
-export const ROUTE_FIELDS = [
-  'legs',
-  'path',
-  'viewport',
-  'durationMillis',
-  'distanceMeters',
-  'localizedValues',
-  'travelAdvisory',
-  'routeLabels',
-  'description',
-  'warnings',
-];
+export const ROUTE_FIELDS = ['legs', 'path', 'viewport', 'durationMillis', 'distanceMeters', 'localizedValues', 'travelAdvisory', 'routeLabels'];
 
-const TRANSIT_MODES: google.maps.TransitModeString[] = ['BUS', 'RAIL', 'SUBWAY', 'TRAIN', 'TRAM', 'LIGHT_RAIL'];
+/** 公式の transit 例と同じ一覧（TRAM は Routes API では指定不可） */
+export const TRANSIT_MODES: google.maps.TransitModeString[] = ['BUS', 'SUBWAY', 'TRAIN', 'LIGHT_RAIL', 'RAIL'];
 
 export function buildRequest(query: RouteQuery, opts?: { alternatives?: boolean }): google.maps.routes.ComputeRoutesRequest {
   const req: google.maps.routes.ComputeRoutesRequest = {
@@ -114,18 +130,40 @@ export function buildRequest(query: RouteQuery, opts?: { alternatives?: boolean 
 
 type RouteClass = Pick<typeof google.maps.routes.Route, 'computeRoutes'>;
 
-/** Route.computeRoutes を呼び、結果が空ならエラーにする */
+/** INVALID_ARGUMENT 時の再試行用: フィールドを '*' にし、乗り物の絞り込みを外す */
+export function relaxRequest(request: google.maps.routes.ComputeRoutesRequest): google.maps.routes.ComputeRoutesRequest {
+  const relaxed: google.maps.routes.ComputeRoutesRequest = { ...request, fields: ['*'] };
+  if (request.transitPreference) {
+    const { routingPreference } = request.transitPreference;
+    relaxed.transitPreference = routingPreference ? { routingPreference } : undefined;
+  }
+  return relaxed;
+}
+
+/** Route.computeRoutes を呼び、結果が空ならエラーにする。INVALID_ARGUMENT の場合は条件を緩めて 1 回だけ再試行する。 */
 export async function requestRoutes(
   RouteCls: RouteClass,
   request: google.maps.routes.ComputeRoutesRequest,
 ): Promise<google.maps.routes.Route[]> {
   const mode = request.travelMode as TravelMode | undefined;
+  const attempt = async (req: google.maps.routes.ComputeRoutesRequest) => {
+    try {
+      return await RouteCls.computeRoutes(req);
+    } catch (err) {
+      console.error('[naviroot] Routes API error', err);
+      const status = statusFromError(err);
+      throw new DirectionsError(status, messageForStatus(status, mode), describeError(err));
+    }
+  };
   let result: Awaited<ReturnType<RouteClass['computeRoutes']>>;
   try {
-    result = await RouteCls.computeRoutes(request);
+    result = await attempt(request);
   } catch (err) {
-    const status = statusFromError(err);
-    throw new DirectionsError(status, messageForStatus(status, mode));
+    if (err instanceof DirectionsError && err.status === 'INVALID_REQUEST') {
+      result = await attempt(relaxRequest(request));
+    } else {
+      throw err;
+    }
   }
   const routes = result.routes ?? [];
   if (routes.length === 0) throw new DirectionsError('ZERO_RESULTS', messageForStatus('ZERO_RESULTS', mode));

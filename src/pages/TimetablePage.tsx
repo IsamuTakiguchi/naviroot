@@ -4,7 +4,8 @@ import { useMapsLibrary } from '@vis.gl/react-google-maps';
 import type { Place, TimetableEntry } from '../types';
 import { RouteForm } from '../components/RouteForm';
 import { TimetableView } from '../components/TimetableView';
-import { buildRequest, DirectionsError, requestRoutes } from '../lib/directions';
+import { ErrorDetail } from '../components/ErrorDetail';
+import { buildRequest, describeError, DirectionsError, requestRoutes } from '../lib/directions';
 import { collectTimetable } from '../lib/timetable';
 import { paramsToQuery, queryToParams } from '../lib/query';
 import { TIMETABLE_MAX_QUERIES } from '../config';
@@ -20,6 +21,7 @@ export function TimetablePage() {
   const [loading, setLoading] = useState(false);
   const [progress, setProgress] = useState(0);
   const [error, setError] = useState<string | undefined>();
+  const [errorDetail, setErrorDetail] = useState<string | undefined>();
   const [searchedAt, setSearchedAt] = useState<Date | undefined>();
   const routesLib = useMapsLibrary('routes');
 
@@ -29,6 +31,7 @@ export function TimetablePage() {
     const start = fromDateTimeLocal(time) ?? new Date();
     setLoading(true);
     setError(undefined);
+    setErrorDetail(undefined);
     setEntries([]);
     setProgress(0);
     setSearchedAt(start);
@@ -52,6 +55,7 @@ export function TimetablePage() {
       setEntries(result);
     } catch (err) {
       setError(err instanceof DirectionsError ? err.message : '時刻表を取得できませんでした。');
+      setErrorDetail(err instanceof DirectionsError ? err.detail : describeError(err));
     } finally {
       setLoading(false);
     }
@@ -92,7 +96,12 @@ export function TimetablePage() {
           </button>
         </div>
       </div>
-      {error && <div className="alert error">{error}</div>}
+      {error && (
+        <div className="alert error">
+          {error}
+          <ErrorDetail detail={errorDetail} />
+        </div>
+      )}
       {loading && (
         <div className="loading">
           <span className="spinner" /> 出発便を取得中… ({progress}/{TIMETABLE_MAX_QUERIES})

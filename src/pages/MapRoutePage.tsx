@@ -4,6 +4,7 @@ import type { LatLng, MapRoute, Place, RouteQuery, TravelMode } from '../types';
 import { RouteForm } from '../components/RouteForm';
 import { MapView } from '../components/MapView';
 import { RouteSummary } from '../components/RouteSummary';
+import { ErrorDetail } from '../components/ErrorDetail';
 import { useDirections } from '../hooks/useDirections';
 import { useGeolocation } from '../hooks/useGeolocation';
 import { useHistory } from '../hooks/useHistory';
@@ -136,6 +137,7 @@ export function MapRoutePage() {
         {directions.error && (
           <div className="alert error">
             {directions.error}
+            <ErrorDetail detail={directions.errorDetail} />
             {mode === 'BICYCLING' && (
               <div>
                 <button type="button" className="btn small" style={{ marginTop: 6 }} onClick={() => changeMode('WALKING')}>
