@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { buildRequest, describeError, DirectionsError, pathToLatLngs, relaxRequest, requestRoutes, statusFromError, toMapRoutes, TRANSIT_MODES } from './directions';
+import { buildRequest, describeEmptyResult, describeError, DirectionsError, emptyResultStatus, pathToLatLngs, relaxRequest, requestRoutes, statusFromError, toMapRoutes, TRANSIT_MODES } from './directions';
 import type { RouteLike } from './transit';
 
 describe('directions', () => {
@@ -44,6 +44,21 @@ describe('directions', () => {
     expect(err).toBeInstanceOf(DirectionsError);
     expect((err as DirectionsError).status).toBe('REQUEST_DENIED');
     expect((err as DirectionsError).detail).toContain('PERMISSION_DENIED');
+  });
+
+  it('empty results report which endpoint failed to geocode', async () => {
+    expect(emptyResultStatus(null)).toBe('ZERO_RESULTS');
+    expect(emptyResultStatus({ origin: { geocoderStatus: 'OK' }, destination: { geocoderStatus: 'OK' } })).toBe('ZERO_RESULTS');
+    expect(emptyResultStatus({ origin: { geocoderStatus: 'NOT_FOUND' } })).toBe('ORIGIN_NOT_FOUND');
+    expect(emptyResultStatus({ origin: { geocoderStatus: 'OK' }, destination: { geocoderStatus: 'ZERO_RESULTS' } })).toBe('DESTINATION_NOT_FOUND');
+    const originResult = { geocoderStatus: 'NOT_FOUND', partialMatch: true };
+    const geo = { origin: originResult, destination: null, toJSON: () => ({ origin: originResult }) };
+    expect(describeEmptyResult({ geocodingResults: geo, fallbackInfo: null })).toBe('routes=0 geocoding={"origin":{"geocoderStatus":"NOT_FOUND","partialMatch":true}}');
+    const cls = { computeRoutes: async () => ({ routes: [], fallbackInfo: null, geocodingResults: geo }) };
+    const err = await requestRoutes(cls as never, { origin: 'x', destination: 'y', fields: ['legs'] }).catch((e: unknown) => e);
+    expect((err as DirectionsError).status).toBe('ORIGIN_NOT_FOUND');
+    expect((err as DirectionsError).message).toContain('出発地');
+    expect((err as DirectionsError).detail).toContain('NOT_FOUND');
   });
 
   it('describeError includes name, code, endpoint and message', () => {

@@ -47,11 +47,20 @@ export function MapRoutePage() {
       setRoutes([]);
       setRouteIdx(0);
       setExpanded(false);
-      const result = await directions.search(q);
+      let resolvedFrom = q.from;
+      let resolvedTo = q.to;
+      const result = await directions.search(q, {
+        onResolved: (f, t) => {
+          resolvedFrom = f;
+          resolvedTo = t;
+          setFrom(f);
+          setTo(t);
+        },
+      });
       if (!result) return;
       setRoutes(toMapRoutes(result, q.mode));
       setFormOpen(false);
-      history.add(q.from, q.to, q.mode);
+      history.add(resolvedFrom, resolvedTo, q.mode);
     },
     [directions, history],
   );

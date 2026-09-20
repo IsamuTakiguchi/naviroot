@@ -34,14 +34,23 @@ export function TransitPage() {
     async (q: RouteQuery) => {
       setSelected(undefined);
       setShowMap(false);
-      const result = await directions.search(q);
+      let resolvedFrom = q.from;
+      let resolvedTo = q.to;
+      const result = await directions.search(q, {
+        onResolved: (f, t) => {
+          resolvedFrom = f;
+          resolvedTo = t;
+          setFrom(f);
+          setTo(t);
+        },
+      });
       if (!result) {
         setPlans([]);
         return;
       }
       const p = resultToPlans(result);
       setPlans(p);
-      history.add(q.from, q.to, 'TRANSIT');
+      history.add(resolvedFrom, resolvedTo, 'TRANSIT');
     },
     [directions, history],
   );
@@ -102,6 +111,19 @@ export function TransitPage() {
       {directions.error && (
         <div className="alert error">
           {directions.error}
+          {directions.errorStatus === 'ZERO_RESULTS' && from && to && (
+            <div style={{ marginTop: 8 }}>
+              <button
+                type="button"
+                className="btn small"
+                onClick={() =>
+                  navigate({ pathname: '/map', search: queryToParams({ from, to, mode: 'WALKING', timeType: 'departure' }).toString() })
+                }
+              >
+                🚶 徒歩ルートで検索する
+              </button>
+            </div>
+          )}
           <ErrorDetail detail={directions.errorDetail} />
         </div>
       )}

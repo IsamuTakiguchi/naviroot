@@ -33,8 +33,11 @@ export function describeError(err: unknown): string {
 }
 
 const STATUS_MESSAGES: Record<string, string> = {
-  ZERO_RESULTS: '経路が見つかりませんでした。出発地・目的地や移動手段、日時を変えてお試しください。',
+  ZERO_RESULTS:
+    '経路が見つかりませんでした。出発地・目的地は入力中に出る候補から選び直し、日時や移動手段を変えてお試しください。近距離の場合は徒歩ルートで検索できます。',
   NOT_FOUND: '出発地または目的地を特定できませんでした。候補から選ぶか、駅名・住所を確認してください。',
+  ORIGIN_NOT_FOUND: '出発地を特定できませんでした。入力中に出る候補から選び直してください（市区町村名を付けると見つかりやすくなります）。',
+  DESTINATION_NOT_FOUND: '目的地を特定できませんでした。入力中に出る候補から選び直してください（市区町村名を付けると見つかりやすくなります）。',
   INVALID_REQUEST:
     '検索条件が受け付けられませんでした。出発地・目的地を候補から選び直すか、日時（過去や 7 日以上前は指定できません）を確認してください。',
   OVER_QUERY_LIMIT: 'API の利用上限に達しました。しばらくしてからお試しください。',
@@ -166,8 +169,42 @@ export async function requestRoutes(
     }
   }
   const routes = result.routes ?? [];
-  if (routes.length === 0) throw new DirectionsError('ZERO_RESULTS', messageForStatus('ZERO_RESULTS', mode));
+  if (routes.length === 0) {
+    const status = emptyResultStatus(result.geocodingResults);
+    throw new DirectionsError(status, messageForStatus(status, mode), describeEmptyResult(result));
+  }
   return routes;
+}
+
+interface GeocodedLike {
+  geocoderStatus?: string | null;
+  partialMatch?: boolean;
+  placeId?: string;
+}
+interface GeocodingResultsLike {
+  origin?: GeocodedLike | null;
+  destination?: GeocodedLike | null;
+}
+
+/** 経路 0 件のとき、住所解決の失敗が原因かどうかを判定する */
+export function emptyResultStatus(geo: GeocodingResultsLike | null | undefined): string {
+  const failed = (g: GeocodedLike | null | undefined) => !!g?.geocoderStatus && g.geocoderStatus !== 'OK';
+  if (failed(geo?.origin)) return 'ORIGIN_NOT_FOUND';
+  if (failed(geo?.destination)) return 'DESTINATION_NOT_FOUND';
+  return 'ZERO_RESULTS';
+}
+
+export function describeEmptyResult(result: { geocodingResults?: unknown; fallbackInfo?: unknown }): string {
+  const toPlain = (v: unknown) => {
+    if (v && typeof v === 'object' && typeof (v as { toJSON?: unknown }).toJSON === 'function') return (v as { toJSON(): unknown }).toJSON();
+    return v;
+  };
+  const parts: string[] = ['routes=0'];
+  const geo = toPlain(result.geocodingResults);
+  if (geo) parts.push(`geocoding=${JSON.stringify(geo)}`);
+  const fb = toPlain(result.fallbackInfo);
+  if (fb) parts.push(`fallback=${JSON.stringify(fb)}`);
+  return parts.join(' ');
 }
 
 export function pathToLatLngs(path: RouteLike['path']): LatLng[] {

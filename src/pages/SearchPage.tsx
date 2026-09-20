@@ -7,6 +7,7 @@ import { useGeolocation } from '../hooks/useGeolocation';
 import { useFavorites } from '../hooks/useFavorites';
 import { useMapsLibrary } from '@vis.gl/react-google-maps';
 import { queryToParams } from '../lib/query';
+import { resolvePlace } from '../lib/places';
 
 export function SearchPage() {
   const navigate = useNavigate();
@@ -29,32 +30,14 @@ export function SearchPage() {
       setCenter(p.location);
       return;
     }
-    if (!places) {
+    const resolved = await resolvePlace(places, p, geo.position);
+    if (!resolved.location) {
+      setError('場所が見つかりませんでした。入力中に出る候補から選ぶか、市区町村名を付けてお試しください。');
       setPlace(p);
       return;
     }
-    try {
-      const { places: found } = await places.Place.searchByText({
-        textQuery: p.name,
-        fields: ['id', 'location', 'formattedAddress', 'displayName'],
-        region: 'jp',
-        language: 'ja',
-        maxResultCount: 1,
-      });
-      const r = found[0];
-      if (!r || !r.location) {
-        setError('場所が見つかりませんでした。候補から選ぶか、別の言葉でお試しください。');
-        setPlace(p);
-        return;
-      }
-      const loc = { lat: r.location.lat(), lng: r.location.lng() };
-      const resolved: Place = { name: r.displayName || p.name, address: r.formattedAddress ?? undefined, placeId: r.id, location: loc };
-      setPlace(resolved);
-      setCenter(loc);
-    } catch {
-      setError('場所を特定できませんでした。Places API (New) が有効か確認してください。');
-      setPlace(p);
-    }
+    setPlace(resolved);
+    setCenter(resolved.location);
   };
 
   const reverse = async (pos: LatLng) => {

@@ -7,6 +7,7 @@ import { TimetableView } from '../components/TimetableView';
 import { ErrorDetail } from '../components/ErrorDetail';
 import { buildRequest, describeError, DirectionsError, requestRoutes } from '../lib/directions';
 import { collectTimetable } from '../lib/timetable';
+import { resolvePair } from '../lib/places';
 import { paramsToQuery, queryToParams } from '../lib/query';
 import { TIMETABLE_MAX_QUERIES } from '../config';
 import { formatDateJa, formatTime, fromDateTimeLocal, toDateTimeLocal } from '../lib/format';
@@ -24,6 +25,7 @@ export function TimetablePage() {
   const [errorDetail, setErrorDetail] = useState<string | undefined>();
   const [searchedAt, setSearchedAt] = useState<Date | undefined>();
   const routesLib = useMapsLibrary('routes');
+  const placesLib = useMapsLibrary('places');
 
   const submit = async () => {
     if (!from || !to || !routesLib) return;
@@ -37,10 +39,13 @@ export function TimetablePage() {
     setSearchedAt(start);
     setParams(queryToParams({ from, to, mode: 'TRANSIT', time, timeType: 'departure' }));
     try {
+      const resolved = await resolvePair(placesLib, from, to);
+      setFrom(resolved.from);
+      setTo(resolved.to);
       const result = await collectTimetable(
         async (dep) => {
           const req = buildRequest(
-            { from, to, mode: 'TRANSIT', time: toDateTimeLocal(dep), timeType: 'departure' },
+            { from: resolved.from, to: resolved.to, mode: 'TRANSIT', time: toDateTimeLocal(dep), timeType: 'departure' },
             { alternatives: true },
           );
           return requestRoutes(RouteCls, req);
