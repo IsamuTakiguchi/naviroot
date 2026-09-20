@@ -98,7 +98,7 @@ export function TransitPage() {
   const showExternal = !!(from && to) && !!transit.error;
 
   return (
-    <div className="page">
+    <div className={`page ${selected ? 'wide' : ''}`}>
       <RouteForm
         from={from}
         to={to}
@@ -161,36 +161,39 @@ export function TransitPage() {
             {timeType === 'first' ? '始発' : timeType === 'last' ? '終電' : `${formatTime(baseDate)} ${timeType === 'arrival' ? '到着' : '出発'}`}
             ・ {FILTER_LABEL[filter]} ・ {plans.length}件
           </div>
-          {selected ? (
-            <>
-              <button type="button" className="btn small ghost" onClick={() => setSelected(undefined)}>
-                ← 一覧に戻る
-              </button>
-              {showMap && (
-                <div className="card" style={{ padding: 0, overflow: 'hidden', height: 260 }}>
-                  <MapView
-                    path={selected.overviewPath}
-                    bounds={selected.bounds}
-                    origin={from.location}
-                    destination={to.location}
-                  />
-                </div>
-              )}
-              <TransitDetail
-                plan={selected}
-                fromName={from.name}
-                toName={to.name}
-                isFavorite={isFav}
-                onToggleFavorite={() => {
-                  if (isFav) favorites.removeRoute(from, to, 'TRANSIT');
-                  else favorites.addRoute(from, to, 'TRANSIT');
-                }}
-                onShowMap={() => setShowMap((v) => !v)}
-              />
-            </>
-          ) : (
-            <TransitResultList plans={plans} onSelect={openMap} />
-          )}
+          <div className={`results ${selected ? 'has-selected' : ''}`}>
+            <div className="results-list">
+              <TransitResultList plans={plans} selectedId={selected?.id} onSelect={openMap} />
+            </div>
+            {selected && (
+              <div className="results-detail">
+                <button type="button" className="btn small ghost mobile-only" onClick={() => setSelected(undefined)}>
+                  ← 一覧に戻る
+                </button>
+                {showMap && (
+                  <div className="card" style={{ padding: 0, overflow: 'hidden', height: 280 }}>
+                    <MapView
+                      path={selected.overviewPath}
+                      bounds={selected.bounds}
+                      origin={from.location}
+                      destination={to.location}
+                    />
+                  </div>
+                )}
+                <TransitDetail
+                  plan={selected}
+                  fromName={from.name}
+                  toName={to.name}
+                  isFavorite={isFav}
+                  onToggleFavorite={() => {
+                    if (isFav) favorites.removeRoute(from, to, 'TRANSIT');
+                    else favorites.addRoute(from, to, 'TRANSIT');
+                  }}
+                  onShowMap={() => setShowMap((v) => !v)}
+                />
+              </div>
+            )}
+          </div>
           <p style={{ fontSize: 12, color: 'var(--color-text-muted)' }}>乗換データ: NAVITIME API</p>
         </>
       )}

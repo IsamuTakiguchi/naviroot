@@ -10,6 +10,10 @@ const ITEMS = [
 export function BottomNav() {
   return (
     <nav className="bottom-nav" aria-label="メインナビゲーション">
+      <div className="nav-brand" aria-hidden>
+        <span className="logo">📍</span>
+        naviroot
+      </div>
       {ITEMS.map((it) => (
         <NavLink key={it.to} to={it.to} end={it.to === '/'} className={({ isActive }) => (isActive ? 'active' : '')}>
           <span className="icon" aria-hidden>
