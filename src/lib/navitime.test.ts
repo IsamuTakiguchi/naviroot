@@ -4,6 +4,7 @@ import {
   fetchNavitimeRoutes,
   itemToPlan,
   navitimeToPlans,
+  mergePlans,
   navitimeUrl,
   NavitimeError,
   requestNavitimePlans,
@@ -75,11 +76,13 @@ describe('navitime', () => {
     const from = { lat: 34.69, lng: 135.76 };
     const to = { lat: 34.7, lng: 135.75 };
     const dep = buildNavitimeParams(from, to, 'departure', '2026-09-20T14:00');
-    expect(dep).toMatchObject({ start: '34.69,135.76', goal: '34.7,135.75', start_time: '2026-09-20T14:00:00', limit: '5', datum: 'wgs84', shape: 'true' });
+    expect(dep).toMatchObject({ start: '34.69,135.76', goal: '34.7,135.75', start_time: '2026-09-20T14:00:00', limit: '10', datum: 'wgs84', shape: 'true' });
+    expect(dep.order).toBeUndefined();
+    expect(buildNavitimeParams(from, to, 'departure', '2026-09-20T14:00', 10, 'all', 'fare').order).toBe('fare');
     expect(dep.lang).toBeUndefined();
     expect(dep.bus_data).toBe('timetable');
     expect(dep.unuse).toBeUndefined();
-    expect(stripOptionalParams(dep)).toEqual({ start: '34.69,135.76', goal: '34.7,135.75', start_time: '2026-09-20T14:00:00', limit: '5' });
+    expect(stripOptionalParams(dep)).toEqual({ start: '34.69,135.76', goal: '34.7,135.75', start_time: '2026-09-20T14:00:00', limit: '10' });
     expect(buildNavitimeParams(from, to, 'departure', '2026-09-20T14:00', 5, 'bus').unuse).toBe(
       'local_train.rapid_train.semiexpress_train.express_train.ultraexpress_train.sleeper_ultraexpress.superexpress_train.domestic_flight.ferry',
     );
@@ -127,6 +130,16 @@ describe('navitime', () => {
     expect(p.departureTime.toISOString()).toBe('2026-09-20T05:02:00.000Z');
     expect(p.overviewPath).toHaveLength(3);
     expect(p.summary).toBe('奈良交通バス 学園前駅行 → 近鉄奈良線');
+  });
+
+  it('mergePlans dedupes identical routes and re-assigns ids and badges', () => {
+    const a = navitimeToPlans({ items: [item()] });
+    const b = navitimeToPlans({ items: [item(), item({ summary: { ...item().summary, move: { ...item().summary.move, from_time: '2026-09-20T14:30:00+09:00', to_time: '2026-09-20T15:00:00+09:00', time: 30, transit_count: 0, fare: { unit_0: 300 } } }, sections: item().sections.slice(0, 5) })] });
+    const merged = mergePlans([a, b]);
+    expect(merged).toHaveLength(2);
+    expect(merged.map((p) => p.id)).toEqual(['nt-0', 'nt-1']);
+    expect(merged[0].badges).toContain('cheapest');
+    expect(merged[1].badges).toContain('fastest');
   });
 
   it('navitimeToPlans sorts and assigns badges; empty items yield none', () => {

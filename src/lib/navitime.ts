@@ -127,13 +127,23 @@ export const FILTER_LABEL: Record<TransitFilter, string> = {
   no_express: '新幹線・特急なし',
 };
 
+/** 候補の並び順（NAVITIME の order パラメータ） */
+export type NavitimeOrder = 'time_optimized' | 'fare' | 'transit' | 'walk_distance' | 'total_distance';
+
+/** 「別の経路も探す」で追加取得する並び順 */
+export const EXTRA_ORDERS: NavitimeOrder[] = ['fare', 'transit', 'walk_distance'];
+
+/** 1 回の検索で取得する候補数（NAVITIME の上限） */
+export const NAVITIME_LIMIT = 10;
+
 export function buildNavitimeParams(
   from: LatLng,
   to: LatLng,
   timeType: TimeType,
   time?: string,
-  limit = 5,
+  limit = NAVITIME_LIMIT,
   filter: TransitFilter = 'all',
+  order?: NavitimeOrder,
 ): Record<string, string> {
   const params: Record<string, string> = {
     start: `${from.lat},${from.lng}`,
@@ -147,6 +157,7 @@ export function buildNavitimeParams(
   };
   const unuse = UNUSE_BY_FILTER[filter] ?? [];
   if (unuse.length) params.unuse = unuse.join('.');
+  if (order) params.order = order;
   const t = toNavitimeTime(time);
   const date = t.slice(0, 10);
   switch (timeType) {
@@ -361,9 +372,27 @@ export function itemToPlan(item: NavitimeItem, index: number, now: Date = new Da
   };
 }
 
+export function planKey(p: TransitPlan): string {
+  return `${p.departureTime.getTime()}|${p.arrivalTime.getTime()}|${p.summary}|${p.transfers}`;
+}
+
+/** 同じ経路（出発・到着・路線構成が同じ）を除き、出発時刻順に並べてバッジを付け直す */
+export function mergePlans(lists: TransitPlan[][]): TransitPlan[] {
+  const seen = new Set<string>();
+  const out: TransitPlan[] = [];
+  for (const list of lists) {
+    for (const p of list) {
+      const k = planKey(p);
+      if (seen.has(k)) continue;
+      seen.add(k);
+      out.push(p);
+    }
+  }
+  out.sort((a, b) => a.departureTime.getTime() - b.departureTime.getTime() || a.durationSec - b.durationSec);
+  return assignBadges(out.map((p, i) => ({ ...p, id: `nt-${i}` })));
+}
+
 export function navitimeToPlans(json: NavitimeResponse, now: Date = new Date()): TransitPlan[] {
   const items = json.items ?? [];
-  const plans = items.map((it, i) => itemToPlan(it, i, now));
-  plans.sort((a, b) => a.departureTime.getTime() - b.departureTime.getTime());
-  return assignBadges(plans);
+  return mergePlans([items.map((it, i) => itemToPlan(it, i, now))]);
 }

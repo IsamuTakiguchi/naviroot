@@ -164,6 +164,18 @@ export function TransitPage() {
           <div className={`results ${selected ? 'has-selected' : ''}`}>
             <div className="results-list">
               <TransitResultList plans={plans} selectedId={selected?.id} onSelect={openMap} />
+              {!transit.moreLoaded && (
+                <button
+                  type="button"
+                  className="btn block"
+                  style={{ marginTop: 12 }}
+                  disabled={transit.loadingMore}
+                  onClick={() => void transit.searchMore()}
+                >
+                  {transit.loadingMore ? '別の経路を探しています…' : '🔎 別の経路も探す（安い・乗換が少ない・歩きが少ない順）'}
+                </button>
+              )}
+              {transit.moreError && <div className="alert warn">{transit.moreError}</div>}
             </div>
             {selected && (
               <div className="results-detail">
