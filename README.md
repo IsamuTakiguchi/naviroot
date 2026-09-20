@@ -14,8 +14,11 @@ NAVITIME 風の経路検索アプリです。Google Maps Platform を使い、�
 このリポジトリは push のたびに GitHub Actions が自動でビルドし、GitHub Pages に公開します。
 
 1. **公開 URL を開く**: `https://isamutakiguchi.github.io/naviroot/`
-   - 初回のみ: GitHub Free の個人アカウントでは **非公開リポジトリで GitHub Pages が使えません**。リポジトリの Settings → General → Danger Zone → **Change visibility → Public** にすると、次回の Actions 実行から公開されます（コードに秘密情報は含まれていません。API キーは端末内にのみ保存されます）。GitHub Pro 以上なら非公開のままでも公開できます。
-   - Actions の結果は [Actions タブ](https://github.com/IsamuTakiguchi/naviroot/actions) で確認できます。
+   - **初回のみ、GitHub の設定を 1 回だけ行います**（Actions からは変更できないため）:
+     1. GitHub Free の個人アカウントの場合: [Settings → General](https://github.com/IsamuTakiguchi/naviroot/settings) の Danger Zone → **Change visibility → Public**（非公開リポジトリでは Pages が使えません。コードに秘密情報は含まれず、API キーは端末内にのみ保存されます。GitHub Pro 以上なら不要）
+     2. [Settings → Pages](https://github.com/IsamuTakiguchi/naviroot/settings/pages) の Build and deployment → **Source を「GitHub Actions」** にする
+     3. [Actions タブ](https://github.com/IsamuTakiguchi/naviroot/actions) で最新の実行を開き **Re-run jobs**（または何か push する）
+   - 以後は push のたびに自動で公開されます。
 2. **API キーを貼り付ける**: 初回起動時の画面の手順（約 5 分）に沿って Google Maps API キーを取得し、入力欄に貼り付けて「保存して開始」を押します。キーはその端末のブラウザにだけ保存されます。
 3. **ホーム画面に追加**: iPhone は共有ボタン →「ホーム画面に追加」、Android はブラウザメニュー →「アプリをインストール」。
 

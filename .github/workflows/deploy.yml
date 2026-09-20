@@ -50,3 +50,7 @@ jobs:
           enablement: true
       - id: deployment
         uses: actions/deploy-pages@v4
+      - name: How to fix (shown only when deployment fails)
+        if: failure()
+        run: |
+          echo "::error title=GitHub Pages が有効になっていません::リポジトリの Settings → Pages → Build and deployment → Source で「GitHub Actions」を選んでください。GitHub Free の個人アカウントでは、先に Settings → General → Danger Zone → Change visibility で Public にする必要があります。設定後、Actions のこのワークフローを「Re-run jobs」すると公開されます。"
