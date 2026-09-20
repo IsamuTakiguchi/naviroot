@@ -17,10 +17,18 @@ export function ApiKeyNotice() {
         <h2>API キーの取得手順（約 5 分）</h2>
         <ol>
           <li>
+            <a href={`${CONSOLE}/billing/projects`} target="_blank" rel="noreferrer">
+              課金が有効なプロジェクト
+            </a>
+            を使います。Google Cloud Console 右上のプロジェクト選択で、すでに課金が有効なプロジェクトを選んでください。無い場合のみ{' '}
             <a href={`${CONSOLE}/projectcreate`} target="_blank" rel="noreferrer">
               プロジェクトを作成
             </a>
-            します（名前は「naviroot」など任意）。初回は請求先アカウントの登録が求められます（毎月 $200 分の無料枠内なら請求されません）。
+            して請求先アカウントを登録します（毎月 $200 分の無料枠内なら請求されません）。
+            <div className="alert warn" style={{ marginTop: 6 }}>
+              「課金を有効にできるプロジェクトの上限に達しています」と表示された場合は、新規作成ではなく既存の課金有効プロジェクトを選ぶか、「お支払い →
+              マイプロジェクト」で不要なプロジェクトの課金を無効化して枠を空けてください。
+            </div>
           </li>
           <li>
             次の 3 つの API を有効化します。リンク先で「有効にする」を押してください。

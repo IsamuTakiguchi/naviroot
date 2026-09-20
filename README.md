@@ -24,7 +24,8 @@ NAVITIME 風の経路検索アプリです。Google Maps Platform を使い、�
 
 ## API キーの取得手順
 
-1. [Google Cloud Console でプロジェクトを作成](https://console.cloud.google.com/projectcreate)（初回は請求先アカウントの登録が必要。毎月 $200 分の無料枠あり）
+1. [課金が有効なプロジェクト](https://console.cloud.google.com/billing/projects)を使います。Console 右上のプロジェクト選択で、すでに課金が有効なプロジェクトを選んでください。無い場合のみ[プロジェクトを作成](https://console.cloud.google.com/projectcreate)して請求先アカウントを登録します（毎月 $200 分の無料枠あり）
+   - 「課金を有効にできるプロジェクトの上限に達しています」と表示された場合は、新規作成ではなく既存の課金有効プロジェクトを選ぶか、「お支払い → マイプロジェクト」で不要なプロジェクトの課金を無効化して枠を空けてください
 2. 次の 3 つの API を有効化: [Maps JavaScript API](https://console.cloud.google.com/apis/library/maps-backend.googleapis.com) / [Places API](https://console.cloud.google.com/apis/library/places-backend.googleapis.com) / [Directions API](https://console.cloud.google.com/apis/library/directions-backend.googleapis.com)
 3. [認証情報](https://console.cloud.google.com/apis/credentials) →「認証情報を作成」→「API キー」
 4. （推奨）キーの「アプリケーションの制限」を「ウェブサイト」にし、`https://isamutakiguchi.github.io/*` のみ許可する
