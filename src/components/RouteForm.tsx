@@ -71,6 +71,7 @@ export function RouteForm(props: Props) {
           onChange={onFromChange}
           onLocate={() => useCurrent('from')}
           locating={locatingFor === 'from'}
+          bias={geo.position}
         />
         <button type="button" className="icon-btn swap" aria-label="出発地と目的地を入れ替え" onClick={swap}>
           ⇅
@@ -81,6 +82,7 @@ export function RouteForm(props: Props) {
           onChange={onToChange}
           onLocate={() => useCurrent('to')}
           locating={locatingFor === 'to'}
+          bias={geo.position}
           onSubmit={() => {
             if (canSubmit) onSubmit();
           }}

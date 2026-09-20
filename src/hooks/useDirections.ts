@@ -1,18 +1,17 @@
 import { useCallback, useRef, useState } from 'react';
 import { useMapsLibrary } from '@vis.gl/react-google-maps';
 import type { RouteQuery } from '../types';
-import { buildRequest, DirectionsError, requestDirections } from '../lib/directions';
+import { buildRequest, DirectionsError, requestRoutes } from '../lib/directions';
 
 export interface DirectionsState {
   loading: boolean;
   error?: string;
-  result?: google.maps.DirectionsResult;
+  result?: google.maps.routes.Route[];
 }
 
-/** DirectionsService を使った検索フック。routes ライブラリの読み込み完了を待つ。 */
+/** Routes API（Route.computeRoutes）を使った検索フック。routes ライブラリの読み込み完了を待つ。 */
 export function useDirections() {
   const routesLib = useMapsLibrary('routes');
-  const serviceRef = useRef<google.maps.DirectionsService | null>(null);
   const [state, setState] = useState<DirectionsState>({ loading: false });
   const seq = useRef(0);
 
@@ -22,11 +21,10 @@ export function useDirections() {
         setState({ loading: false, error: '地図ライブラリの読み込み中です。少し待ってからお試しください。' });
         return undefined;
       }
-      if (!serviceRef.current) serviceRef.current = new routesLib.DirectionsService();
       const my = ++seq.current;
       setState({ loading: true });
       try {
-        const result = await requestDirections(serviceRef.current, buildRequest(query, opts));
+        const result = await requestRoutes(routesLib.Route, buildRequest(query, opts));
         if (my !== seq.current) return undefined;
         setState({ loading: false, result });
         return result;
@@ -42,5 +40,5 @@ export function useDirections() {
 
   const reset = useCallback(() => setState({ loading: false }), []);
 
-  return { ...state, ready: !!routesLib, search, reset, getService: () => serviceRef.current };
+  return { ...state, ready: !!routesLib, search, reset };
 }

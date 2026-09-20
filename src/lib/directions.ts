@@ -1,5 +1,6 @@
-import type { Place, RouteQuery, TravelMode, MapRoute, RouteStep } from '../types';
+import type { LatLng, MapRoute, Place, RouteQuery, RouteStep, TravelMode } from '../types';
 import { stripHtml } from './format';
+import type { RouteLike } from './transit';
 
 export class DirectionsError extends Error {
   constructor(
@@ -12,13 +13,12 @@ export class DirectionsError extends Error {
 }
 
 const STATUS_MESSAGES: Record<string, string> = {
-  ZERO_RESULTS: '経路が見つかりませんでした。出発地・目的地や移動手段を変えてお試しください。',
-  NOT_FOUND: '出発地または目的地を特定できませんでした。地名や住所を確認してください。',
-  MAX_WAYPOINTS_EXCEEDED: '経由地が多すぎます。',
-  MAX_ROUTE_LENGTH_EXCEEDED: '経路が長すぎます。',
+  ZERO_RESULTS: '経路が見つかりませんでした。出発地・目的地や移動手段、日時を変えてお試しください。',
+  NOT_FOUND: '出発地または目的地を特定できませんでした。候補から選ぶか、駅名・住所を確認してください。',
   INVALID_REQUEST: '検索条件が不正です。出発地と目的地を入力してください。',
   OVER_QUERY_LIMIT: 'API の利用上限に達しました。しばらくしてからお試しください。',
-  REQUEST_DENIED: 'Directions API の利用が拒否されました。API キーの設定と API の有効化を確認してください。',
+  REQUEST_DENIED:
+    '経路検索が拒否されました。Google Cloud で Routes API が有効か、API キーの制限で Routes API が許可されているかを確認してください。',
   UNKNOWN_ERROR: 'サーバーエラーが発生しました。もう一度お試しください。',
 };
 
@@ -29,15 +29,27 @@ export function messageForStatus(status: string, mode?: TravelMode): string {
   return STATUS_MESSAGES[status] ?? `経路検索に失敗しました (${status})`;
 }
 
-export function placeToLocation(p: Place): string | google.maps.LatLngLiteral | google.maps.Place {
-  if (p.placeId) return { placeId: p.placeId };
-  if (p.location) return p.location;
-  return p.name;
+/** Routes API の例外（MapsRequestError など）から状態コードを推定する */
+export function statusFromError(err: unknown): string {
+  if (typeof err !== 'object' || !err) return 'UNKNOWN_ERROR';
+  const e = err as { code?: unknown; name?: unknown; message?: unknown };
+  const raw = `${String(e.code ?? '')} ${String(e.name ?? '')} ${String(e.message ?? '')}`;
+  if (/NOT_FOUND/i.test(raw)) return 'NOT_FOUND';
+  if (/INVALID_ARGUMENT|INVALID_REQUEST/i.test(raw)) return 'INVALID_REQUEST';
+  if (/PERMISSION_DENIED|REQUEST_DENIED|API_KEY|apiNotActivated|not authorized|denied/i.test(raw)) return 'REQUEST_DENIED';
+  if (/RESOURCE_EXHAUSTED|OVER_QUERY_LIMIT|quota/i.test(raw)) return 'OVER_QUERY_LIMIT';
+  if (/ZERO_RESULTS/i.test(raw)) return 'ZERO_RESULTS';
+  return 'UNKNOWN_ERROR';
 }
 
-function transitModes(): google.maps.TransitMode[] {
-  const TM = google.maps.TransitMode;
-  return [TM.BUS, TM.RAIL, TM.SUBWAY, TM.TRAIN, TM.TRAM];
+type RouteLocation = google.maps.routes.ComputeRoutesRequest['origin'];
+
+/** 場所 → Routes API の origin/destination。座標があれば座標、無ければ placeId、最後に文字列。 */
+export function placeToLocation(p: Place): RouteLocation {
+  if (p.location) return { lat: p.location.lat, lng: p.location.lng };
+  const PlaceCtor = (globalThis as { google?: typeof google }).google?.maps?.places?.Place;
+  if (p.placeId && PlaceCtor) return new PlaceCtor({ id: p.placeId });
+  return p.name;
 }
 
 /** 「始発」「終電」の基準時刻: その日の 04:00 出発 / 翌日 01:30 到着 */
@@ -63,73 +75,95 @@ export function resolveTimeOption(query: RouteQuery): { departureTime?: Date; ar
   }
 }
 
-export function buildRequest(query: RouteQuery, opts?: { alternatives?: boolean }): google.maps.DirectionsRequest {
-  const req: google.maps.DirectionsRequest = {
+export const ROUTE_FIELDS = [
+  'legs',
+  'path',
+  'viewport',
+  'durationMillis',
+  'distanceMeters',
+  'localizedValues',
+  'travelAdvisory',
+  'routeLabels',
+  'description',
+  'warnings',
+];
+
+const TRANSIT_MODES: google.maps.TransitModeString[] = ['BUS', 'RAIL', 'SUBWAY', 'TRAIN', 'TRAM', 'LIGHT_RAIL'];
+
+export function buildRequest(query: RouteQuery, opts?: { alternatives?: boolean }): google.maps.routes.ComputeRoutesRequest {
+  const req: google.maps.routes.ComputeRoutesRequest = {
     origin: placeToLocation(query.from),
     destination: placeToLocation(query.to),
-    travelMode: query.mode as google.maps.TravelMode,
-    provideRouteAlternatives: opts?.alternatives ?? true,
+    travelMode: query.mode,
+    computeAlternativeRoutes: opts?.alternatives ?? true,
+    language: 'ja',
     region: 'jp',
+    fields: ROUTE_FIELDS,
   };
   if (query.mode === 'TRANSIT') {
     const t = resolveTimeOption(query);
-    req.transitOptions = {
-      ...t,
-      modes: transitModes(),
-      routingPreference: google.maps.TransitRoutePreference.FEWER_TRANSFERS,
-    };
-  } else if (query.mode === 'DRIVING') {
-    const t = resolveTimeOption(query);
-    if (t.departureTime && t.departureTime.getTime() > Date.now()) {
-      req.drivingOptions = { departureTime: t.departureTime };
+    if (t.arrivalTime) req.arrivalTime = t.arrivalTime;
+    else if (t.departureTime) {
+      // 過去時刻は API がエラーにするため、現在より前なら現在時刻に丸める
+      req.departureTime = t.departureTime.getTime() < Date.now() ? new Date() : t.departureTime;
     }
+    req.transitPreference = { allowedTransitModes: TRANSIT_MODES, routingPreference: 'FEWER_TRANSFERS' };
   }
   return req;
 }
 
-/** DirectionsService.route を Promise 化 */
-export function requestDirections(
-  service: google.maps.DirectionsService,
-  request: google.maps.DirectionsRequest,
-): Promise<google.maps.DirectionsResult> {
-  return new Promise((resolve, reject) => {
-    void service
-      .route(request, (result, status) => {
-        if (status === google.maps.DirectionsStatus.OK && result) {
-          resolve(result);
-        } else {
-          reject(new DirectionsError(String(status), messageForStatus(String(status), request.travelMode as TravelMode)));
-        }
-      })
-      .catch((err: unknown) => {
-        const status = typeof err === 'object' && err && 'code' in err ? String((err as { code: unknown }).code) : 'UNKNOWN_ERROR';
-        reject(new DirectionsError(status, messageForStatus(status, request.travelMode as TravelMode)));
-      });
+type RouteClass = Pick<typeof google.maps.routes.Route, 'computeRoutes'>;
+
+/** Route.computeRoutes を呼び、結果が空ならエラーにする */
+export async function requestRoutes(
+  RouteCls: RouteClass,
+  request: google.maps.routes.ComputeRoutesRequest,
+): Promise<google.maps.routes.Route[]> {
+  const mode = request.travelMode as TravelMode | undefined;
+  let result: Awaited<ReturnType<RouteClass['computeRoutes']>>;
+  try {
+    result = await RouteCls.computeRoutes(request);
+  } catch (err) {
+    const status = statusFromError(err);
+    throw new DirectionsError(status, messageForStatus(status, mode));
+  }
+  const routes = result.routes ?? [];
+  if (routes.length === 0) throw new DirectionsError('ZERO_RESULTS', messageForStatus('ZERO_RESULTS', mode));
+  return routes;
+}
+
+export function pathToLatLngs(path: RouteLike['path']): LatLng[] {
+  if (!path) return [];
+  return Array.from(path, (p) => {
+    const j = typeof (p as { toJSON?: unknown }).toJSON === 'function' ? (p as { toJSON(): LatLng }).toJSON() : (p as LatLng);
+    return { lat: j.lat, lng: j.lng };
   });
 }
 
 /** 徒歩・車・自転車用の整形 */
-export function toMapRoutes(result: google.maps.DirectionsResult, mode: TravelMode): MapRoute[] {
-  return result.routes.map((route) => {
-    const legs = route.legs;
+export function toMapRoutes(routes: RouteLike[], mode: TravelMode): MapRoute[] {
+  return routes.map((route) => {
+    const legs = route.legs ?? [];
     const steps: RouteStep[] = legs.flatMap((leg) =>
       leg.steps.map((s) => ({
         instruction: stripHtml(s.instructions ?? ''),
-        distanceM: s.distance?.value ?? 0,
-        durationSec: s.duration?.value ?? 0,
-        maneuver: (s as { maneuver?: string }).maneuver,
+        distanceM: s.distanceMeters ?? 0,
+        durationSec: Math.round((s.staticDurationMillis ?? 0) / 1000),
+        maneuver: s.maneuver ?? undefined,
       })),
     );
+    const distanceM = route.distanceMeters ?? legs.reduce((a, l) => a + (l.distanceMeters ?? 0), 0);
+    const durationMs = route.durationMillis ?? legs.reduce((a, l) => a + (l.durationMillis ?? l.staticDurationMillis ?? 0), 0);
     return {
       mode,
-      distanceM: legs.reduce((a, l) => a + (l.distance?.value ?? 0), 0),
-      durationSec: legs.reduce((a, l) => a + (l.duration?.value ?? 0), 0),
-      summary: route.summary ?? '',
+      distanceM,
+      durationSec: Math.round(durationMs / 1000),
+      summary: route.description ?? '',
       steps,
-      overviewPath: route.overview_path ?? [],
-      bounds: route.bounds,
-      startAddress: legs[0]?.start_address ?? '',
-      endAddress: legs[legs.length - 1]?.end_address ?? '',
+      overviewPath: pathToLatLngs(route.path),
+      bounds: route.viewport ?? undefined,
+      startAddress: '',
+      endAddress: '',
     };
   });
 }

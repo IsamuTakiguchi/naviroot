@@ -59,7 +59,7 @@ export function RouteSummary({ route, expanded, onToggle }: Props) {
           ))}
           <li>
             <span>🏁</span>
-            <span>{route.endAddress}</span>
+            <span>{route.endAddress || '目的地に到着'}</span>
             <span />
           </li>
         </ol>

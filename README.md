@@ -26,11 +26,27 @@ NAVITIME 風の経路検索アプリです。Google Maps Platform を使い、�
 
 1. [課金が有効なプロジェクト](https://console.cloud.google.com/billing/projects)を使います。Console 右上のプロジェクト選択で、すでに課金が有効なプロジェクトを選んでください。無い場合のみ[プロジェクトを作成](https://console.cloud.google.com/projectcreate)して請求先アカウントを登録します（毎月 $200 分の無料枠あり）
    - 「課金を有効にできるプロジェクトの上限に達しています」と表示された場合は、新規作成ではなく既存の課金有効プロジェクトを選ぶか、「お支払い → マイプロジェクト」で不要なプロジェクトの課金を無効化して枠を空けてください
-2. 次の 3 つの API を有効化: [Maps JavaScript API](https://console.cloud.google.com/apis/library/maps-backend.googleapis.com) / [Places API](https://console.cloud.google.com/apis/library/places-backend.googleapis.com) / [Directions API](https://console.cloud.google.com/apis/library/directions-backend.googleapis.com)
+2. 次の 3 つの API を有効化: [Maps JavaScript API](https://console.cloud.google.com/apis/library/maps-backend.googleapis.com) / [Places API (New)](https://console.cloud.google.com/apis/library/places.googleapis.com) / [Routes API](https://console.cloud.google.com/apis/library/routes.googleapis.com)
+   - 任意: [Geocoding API](https://console.cloud.google.com/apis/library/geocoding-backend.googleapis.com)（地図をタップした地点の住所表示に使用。未有効なら座標を表示）
+   - 旧 Places API / Directions API（Legacy）は 2025 年 3 月以降の新規プロジェクトでは有効化できないため、このアプリは新しい Places API (New) と Routes API を使います
 3. [認証情報](https://console.cloud.google.com/apis/credentials) →「認証情報を作成」→「API キー」
-4. （推奨）キーの「アプリケーションの制限」を「ウェブサイト」にし、`https://isamutakiguchi.github.io/*` のみ許可する
+4. （推奨）キーの「アプリケーションの制限」を「ウェブサイト」にし、`https://isamutakiguchi.github.io/*` のみ許可する。「API の制限」を付ける場合は上の 3 つ（＋Geocoding API）を許可する
 
 キーの変更・削除は、アプリの「マイページ → 設定 → Google Maps API キー」から行えます。
+
+## 「このページでは Google マップが正しく読み込まれませんでした」と出たら
+
+Google Maps が API キーを拒否したときの標準ダイアログです。アプリの画面上部にエラーコードと原因・対処を表示します。よくある原因:
+
+| エラーコード | 原因 | 対処 |
+|---|---|---|
+| BillingNotEnabledMapError | キーのプロジェクトで課金が有効でない | 課金が有効なプロジェクトでキーを作り直す |
+| RefererNotAllowedMapError | キーの「ウェブサイトの制限」にこの URL が無い | `https://isamutakiguchi.github.io/*` を追加する |
+| ApiNotActivatedMapError | Maps JavaScript API が未有効 | API ライブラリで有効にする |
+| ApiTargetBlockedMapError | キーの「API の制限」で許可されていない | Maps JavaScript API / Places API (New) / Routes API を許可する |
+| InvalidKeyMapError | キーが間違っている | コンソールのキーをコピーし直す |
+
+経路検索だけ失敗する場合は Routes API、候補が出ない場合は Places API (New) の有効化を確認してください。
 
 ## 開発者向け: ローカルで動かす
 
@@ -52,7 +68,7 @@ Service Worker はアプリ本体をキャッシュしますが、Google Maps �
 
 ## 注意事項
 
-- Google Maps Platform は従量課金です。**時刻表機能は 1 回の表示で Directions API を最大 6 回呼び出します**（`src/config.ts` の `TIMETABLE_MAX_QUERIES` で変更可能）。
+- Google Maps Platform は従量課金です（Routes API の経路検索・Places API (New) の詳細取得は各 SKU ごとに月 10,000 回程度の無料枠あり）。**時刻表機能は 1 回の表示で Routes API を最大 6 回呼び出します**（`src/config.ts` の `TIMETABLE_MAX_QUERIES` で変更可能）。
 - 自転車ルートは日本国内では Google が未対応の地域が多く、その場合は徒歩ルートへの切替を案内します。
 - 運賃は Google が経路に運賃情報を返した場合のみ表示されます。
 - 時刻表は駅単体の時刻表ではなく、「出発駅→到着駅」の経路検索結果を出発時刻順に並べたものです。
@@ -65,8 +81,9 @@ src/
 ├── config.ts          APIキー（端末保存 / ビルド時環境変数）、既定の地図中心、各種上限
 ├── types.ts           Place / RouteQuery / TransitPlan などの型
 ├── lib/
-│   ├── directions.ts  DirectionsService の Promise 化・リクエスト生成・エラー日本語化
-│   ├── transit.ts     DirectionsResult → 乗換案内プラン（区間分解・バッジ付与）
+│   ├── directions.ts  Routes API（Route.computeRoutes）のリクエスト生成・エラー日本語化
+│   ├── transit.ts     Route → 乗換案内プラン（区間分解・運賃・バッジ付与）
+│   ├── mapsErrors.ts  Google Maps 認証エラー（課金・リファラー等）の捕捉と日本語説明
 │   ├── timetable.ts   出発時刻一覧の収集ロジック
 │   ├── query.ts       検索条件と URL クエリの相互変換
 │   ├── format.ts      所要時間・運賃・距離・時刻の整形

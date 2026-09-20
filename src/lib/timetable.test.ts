@@ -7,21 +7,22 @@ const t = (h: number, m: number) => new Date(2026, 8, 19, h, m);
 
 function ride(line: string, dep: Date, arr: Date): StepLike {
   return {
-    travel_mode: 'TRANSIT',
-    duration: { value: (arr.getTime() - dep.getTime()) / 1000 },
-    transit: {
-      line: { name: line, vehicle: { type: 'SUBWAY', name: '地下鉄' } },
+    travelMode: 'TRANSIT',
+    staticDurationMillis: arr.getTime() - dep.getTime(),
+    transitDetails: {
+      transitLine: { name: line, vehicle: { vehicleType: 'SUBWAY', name: '地下鉄' } },
       headsign: '池袋',
-      departure_stop: { name: '銀座' },
-      arrival_stop: { name: '新宿' },
-      departure_time: { value: dep },
-      arrival_time: { value: arr },
-      num_stops: 5,
+      departureStop: { name: '銀座' },
+      arrivalStop: { name: '新宿' },
+      departureTime: dep,
+      arrivalTime: arr,
+      stopCount: 5,
     },
   };
 }
 const route = (dep: Date, line = '丸ノ内線'): RouteLike => ({
-  legs: [{ steps: [{ travel_mode: 'WALKING', duration: { value: 60 }, distance: { value: 50 } }, ride(line, dep, new Date(dep.getTime() + 15 * 60_000))], duration: { value: 960 } }],
+  legs: [{ steps: [{ travelMode: 'WALKING', staticDurationMillis: 60_000, distanceMeters: 50 }, ride(line, dep, new Date(dep.getTime() + 15 * 60_000))] }],
+  durationMillis: 960_000,
 });
 const entry = (dep: Date, line = 'L'): TimetableEntry => ({
   departureTime: dep,
@@ -45,7 +46,7 @@ describe('timetable', () => {
   });
 
   it('planToEntry returns null for walk-only routes', () => {
-    expect(planToEntry({ legs: [{ steps: [{ travel_mode: 'WALKING' }] }] }, 0)).toBeNull();
+    expect(planToEntry({ legs: [{ steps: [{ travelMode: 'WALKING' }] }] }, 0)).toBeNull();
   });
 
   it('mergeEntries dedupes and sorts', () => {

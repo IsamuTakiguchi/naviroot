@@ -1,5 +1,5 @@
-import { createContext, useContext, useState } from 'react';
-import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom';
+import { createContext, useContext, useEffect, useState } from 'react';
+import { BrowserRouter, Routes, Route, useLocation, useNavigate } from 'react-router-dom';
 import { APIProvider } from '@vis.gl/react-google-maps';
 import { BottomNav } from './components/BottomNav';
 import { ApiKeyNotice } from './components/ApiKeyNotice';
@@ -10,6 +10,7 @@ import { TimetablePage } from './pages/TimetablePage';
 import { MyPage } from './pages/MyPage';
 import { getApiKey, hasApiKey } from './config';
 import { useOnline } from './hooks/useOnline';
+import { explainMapsError, getLastMapsErrorCode, MAPS_AUTH_ERROR_EVENT, type MapsAuthErrorDetail } from './lib/mapsErrors';
 
 const TITLES: Record<string, string> = {
   '/': '乗換案内',
@@ -22,6 +23,49 @@ const TITLES: Record<string, string> = {
 const FULL_HEIGHT = new Set(['/map', '/search']);
 
 const MapsErrorContext = createContext<string | undefined>(undefined);
+
+/** Google Maps の認証エラー（課金・リファラー制限など）を日本語で説明するバナー */
+function MapsAuthErrorBanner() {
+  const navigate = useNavigate();
+  const [code, setCode] = useState<string | undefined>(() => getLastMapsErrorCode());
+  useEffect(() => {
+    const handler = (e: Event) => setCode((e as CustomEvent<MapsAuthErrorDetail>).detail.code);
+    window.addEventListener(MAPS_AUTH_ERROR_EVENT, handler);
+    return () => window.removeEventListener(MAPS_AUTH_ERROR_EVENT, handler);
+  }, []);
+  if (!code) return null;
+  const { title, fix } = explainMapsError(code);
+  const referrer = `${window.location.origin}/*`;
+  return (
+    <div className="alert error" style={{ margin: '8px 16px' }} role="alert">
+      <div style={{ fontWeight: 700 }}>Google Maps の認証エラー: {title}</div>
+      <div style={{ marginTop: 4 }}>{fix}</div>
+      <div style={{ marginTop: 6, fontSize: 13 }}>
+        エラーコード: <code>{code}</code>
+        <br />
+        ウェブサイトの制限に登録する URL: <code>{referrer}</code>
+      </div>
+      <div className="row wrap" style={{ marginTop: 8 }}>
+        <button type="button" className="btn small" onClick={() => navigate('/my')}>
+          API キーを変更
+        </button>
+        <a
+          className="btn small"
+          href={`https://developers.google.com/maps/documentation/javascript/error-messages#${code
+            .replace(/([a-z])([A-Z])/g, '$1-$2')
+            .toLowerCase()}`}
+          target="_blank"
+          rel="noreferrer"
+        >
+          Google の説明を見る
+        </a>
+        <button type="button" className="btn small" onClick={() => window.location.reload()}>
+          再読み込み
+        </button>
+      </div>
+    </div>
+  );
+}
 
 function Shell() {
   const location = useLocation();
@@ -43,6 +87,7 @@ function Shell() {
           {mapsError}
         </div>
       )}
+      {!needsKey && <MapsAuthErrorBanner />}
       <main className={`app-main ${fullHeight ? 'no-scroll' : ''}`}>
         {needsKey ? (
           <ApiKeyNotice />

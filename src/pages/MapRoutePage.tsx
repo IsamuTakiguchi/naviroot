@@ -101,8 +101,8 @@ export function MapRoutePage() {
           path={route?.overviewPath}
           pathColor={MODE_COLOR[mode]}
           bounds={route?.bounds}
-          origin={from?.location ?? route?.overviewPath?.[0]?.toJSON()}
-          destination={to?.location ?? route?.overviewPath?.[route.overviewPath.length - 1]?.toJSON()}
+          origin={from?.location ?? route?.overviewPath?.[0]}
+          destination={to?.location ?? route?.overviewPath?.[route.overviewPath.length - 1]}
           currentLocation={geo.position}
         />
         <button type="button" className="map-fab" aria-label="現在地" onClick={locate} disabled={geo.loading}>

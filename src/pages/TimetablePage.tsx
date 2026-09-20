@@ -1,10 +1,10 @@
-import { useMemo, useRef, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useMapsLibrary } from '@vis.gl/react-google-maps';
 import type { Place, TimetableEntry } from '../types';
 import { RouteForm } from '../components/RouteForm';
 import { TimetableView } from '../components/TimetableView';
-import { buildRequest, DirectionsError, requestDirections } from '../lib/directions';
+import { buildRequest, DirectionsError, requestRoutes } from '../lib/directions';
 import { collectTimetable } from '../lib/timetable';
 import { paramsToQuery, queryToParams } from '../lib/query';
 import { TIMETABLE_MAX_QUERIES } from '../config';
@@ -22,12 +22,10 @@ export function TimetablePage() {
   const [error, setError] = useState<string | undefined>();
   const [searchedAt, setSearchedAt] = useState<Date | undefined>();
   const routesLib = useMapsLibrary('routes');
-  const serviceRef = useRef<google.maps.DirectionsService | null>(null);
 
   const submit = async () => {
     if (!from || !to || !routesLib) return;
-    if (!serviceRef.current) serviceRef.current = new routesLib.DirectionsService();
-    const service = serviceRef.current;
+    const RouteCls = routesLib.Route;
     const start = fromDateTimeLocal(time) ?? new Date();
     setLoading(true);
     setError(undefined);
@@ -42,8 +40,7 @@ export function TimetablePage() {
             { from, to, mode: 'TRANSIT', time: toDateTimeLocal(dep), timeType: 'departure' },
             { alternatives: true },
           );
-          const res = await requestDirections(service, req);
-          return res.routes;
+          return requestRoutes(RouteCls, req);
         },
         start,
         TIMETABLE_MAX_QUERIES,

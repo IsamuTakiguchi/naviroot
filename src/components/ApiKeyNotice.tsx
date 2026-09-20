@@ -31,7 +31,7 @@ export function ApiKeyNotice() {
             </div>
           </li>
           <li>
-            次の 3 つの API を有効化します。リンク先で「有効にする」を押してください。
+            次の 3 つの API を有効化します。リンク先で対象プロジェクトを選び「有効にする」を押してください。
             <ul>
               <li>
                 <a href={`${CONSOLE}/apis/library/maps-backend.googleapis.com`} target="_blank" rel="noreferrer">
@@ -39,16 +39,22 @@ export function ApiKeyNotice() {
                 </a>
               </li>
               <li>
-                <a href={`${CONSOLE}/apis/library/places-backend.googleapis.com`} target="_blank" rel="noreferrer">
-                  Places API
+                <a href={`${CONSOLE}/apis/library/places.googleapis.com`} target="_blank" rel="noreferrer">
+                  Places API (New)
                 </a>
+                （「(New)」の付いていない旧 Places API ではありません）
               </li>
               <li>
-                <a href={`${CONSOLE}/apis/library/directions-backend.googleapis.com`} target="_blank" rel="noreferrer">
-                  Directions API
+                <a href={`${CONSOLE}/apis/library/routes.googleapis.com`} target="_blank" rel="noreferrer">
+                  Routes API
                 </a>
               </li>
             </ul>
+            任意:{' '}
+            <a href={`${CONSOLE}/apis/library/geocoding-backend.googleapis.com`} target="_blank" rel="noreferrer">
+              Geocoding API
+            </a>
+            を有効にすると、地図をタップした地点の住所が表示されます。
           </li>
           <li>
             <a href={`${CONSOLE}/apis/credentials`} target="_blank" rel="noreferrer">
@@ -57,8 +63,9 @@ export function ApiKeyNotice() {
             で「認証情報を作成」→「API キー」を選ぶと、キーが表示されます。それをコピーして上の欄に貼り付けます。
           </li>
           <li>
-            （推奨）作成したキーの「アプリケーションの制限」を「ウェブサイト」にし、このアプリの URL（例:{' '}
-            <code>{window.location.origin}/*</code>）だけを許可すると、他人に使われるのを防げます。
+            （推奨）作成したキーの「アプリケーションの制限」を「ウェブサイト」にし、このアプリの URL{' '}
+            <code>{window.location.origin}/*</code> だけを許可すると、他人に使われるのを防げます。「API の制限」を付ける場合は、上の 3 つ（＋Geocoding
+            API）を許可してください。
           </li>
         </ol>
         <p className="alert info">

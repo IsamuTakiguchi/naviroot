@@ -16,6 +16,7 @@ export function SearchPage() {
   const geo = useGeolocation();
   const favorites = useFavorites();
   const geocoding = useMapsLibrary('geocoding');
+  const places = useMapsLibrary('places');
 
   const resolve = async (p: Place | undefined) => {
     setError(undefined);
@@ -28,25 +29,30 @@ export function SearchPage() {
       setCenter(p.location);
       return;
     }
-    if (!geocoding) {
+    if (!places) {
       setPlace(p);
       return;
     }
     try {
-      const geocoder = new geocoding.Geocoder();
-      const res = await geocoder.geocode({ address: p.name, region: 'jp', language: 'ja' });
-      const r = res.results[0];
-      if (!r) {
-        setError('場所が見つかりませんでした。');
+      const { places: found } = await places.Place.searchByText({
+        textQuery: p.name,
+        fields: ['id', 'location', 'formattedAddress', 'displayName'],
+        region: 'jp',
+        language: 'ja',
+        maxResultCount: 1,
+      });
+      const r = found[0];
+      if (!r || !r.location) {
+        setError('場所が見つかりませんでした。候補から選ぶか、別の言葉でお試しください。');
         setPlace(p);
         return;
       }
-      const loc = { lat: r.geometry.location.lat(), lng: r.geometry.location.lng() };
-      const resolved: Place = { name: p.name, address: r.formatted_address, placeId: r.place_id, location: loc };
+      const loc = { lat: r.location.lat(), lng: r.location.lng() };
+      const resolved: Place = { name: r.displayName || p.name, address: r.formattedAddress ?? undefined, placeId: r.id, location: loc };
       setPlace(resolved);
       setCenter(loc);
     } catch {
-      setError('場所を特定できませんでした。');
+      setError('場所を特定できませんでした。Places API (New) が有効か確認してください。');
       setPlace(p);
     }
   };
@@ -102,7 +108,7 @@ export function SearchPage() {
         </button>
       </div>
       <div className="panel">
-        <PlaceInput value={place} placeholder="駅名・住所・スポット名で検索" onChange={(p) => void resolve(p)} autoFocus />
+        <PlaceInput value={place} placeholder="駅名・住所・スポット名で検索" onChange={(p) => void resolve(p)} autoFocus bias={geo.position} />
         {geo.error && <div className="alert error">{geo.error}</div>}
         {error && <div className="alert error">{error}</div>}
         {place ? (

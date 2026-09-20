@@ -66,7 +66,7 @@ export interface TransitPlan {
   segments: PlanSegment[];
   summary: string;
   bounds?: google.maps.LatLngBounds;
-  overviewPath?: google.maps.LatLng[];
+  overviewPath?: LatLng[];
   /** 「早」「安」「楽」 */
   badges: PlanBadge[];
 }
@@ -86,8 +86,8 @@ export interface MapRoute {
   durationSec: number;
   summary: string;
   steps: RouteStep[];
-  overviewPath: google.maps.LatLng[];
-  bounds: google.maps.LatLngBounds;
+  overviewPath: LatLng[];
+  bounds?: google.maps.LatLngBounds;
   startAddress: string;
   endAddress: string;
 }
