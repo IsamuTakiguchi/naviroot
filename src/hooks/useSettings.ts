@@ -3,7 +3,7 @@ import type { Settings } from '../types';
 import { useLocalState } from './useLocalState';
 
 export const SETTINGS_KEY = 'settings';
-export const DEFAULT_SETTINGS: Settings = { defaultMode: 'TRANSIT', saveHistory: true };
+export const DEFAULT_SETTINGS: Settings = { defaultMode: 'TRANSIT', saveHistory: true, autoFollowups: true };
 
 export function useSettings() {
   const [stored, setStored] = useLocalState<Partial<Settings>>(SETTINGS_KEY, {});

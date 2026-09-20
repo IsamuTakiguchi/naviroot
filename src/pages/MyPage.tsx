@@ -91,6 +91,15 @@ export function MyPage() {
           <span>検索履歴を保存する</span>
           <input type="checkbox" checked={settings.saveHistory} onChange={(e) => update({ saveHistory: e.target.checked })} />
         </div>
+        <div className="toggle">
+          <span>
+            乗換案内で後続便を自動取得する
+            <span style={{ display: 'block', fontSize: 12, color: 'var(--color-text-muted)' }}>
+              候補が少ないとき時刻をずらして再検索します（1 回の検索で NAVITIME API を最大 3 回消費）
+            </span>
+          </span>
+          <input type="checkbox" checked={settings.autoFollowups} onChange={(e) => update({ autoFollowups: e.target.checked })} />
+        </div>
         <div className="toggle" style={{ flexWrap: 'wrap', gap: 8 }}>
           <span>Google Maps API キー</span>
           <span className="row">

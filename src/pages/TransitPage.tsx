@@ -15,6 +15,7 @@ import { useFavorites } from '../hooks/useFavorites';
 import { paramsToQuery, queryToParams } from '../lib/query';
 import { formatDateJa, formatTime } from '../lib/format';
 import { FILTER_LABEL } from '../lib/navitime';
+import { NAVITIME_FREE_LIMIT, readNavitimeUsage } from '../config';
 import { Icon } from '../components/Icon';
 
 export function TransitPage() {
@@ -161,10 +162,42 @@ export function TransitPage() {
             {formatDateJa(baseDate)}{' '}
             {timeType === 'first' ? '始発' : timeType === 'last' ? '終電' : `${formatTime(baseDate)} ${timeType === 'arrival' ? '到着' : '出発'}`}
             ・ {FILTER_LABEL[filter]} ・ {plans.length}件
+            {plans.length > 1 && (
+              <>
+                {' '}
+                （{formatTime(plans[0].departureTime)}〜{formatTime(plans[plans.length - 1].departureTime)} 発）
+              </>
+            )}
+            <span style={{ fontWeight: 400, marginLeft: 6, fontSize: 11 }}>
+              API 応答 {transit.firstBatch} 件 × {transit.apiCalls} 回
+            </span>
           </div>
           <div className={`results ${selected ? 'has-selected' : ''}`}>
             <div className="results-list">
+              {timeType !== 'first' && (
+                <button
+                  type="button"
+                  className="btn small block"
+                  style={{ marginBottom: 10 }}
+                  disabled={!!transit.sliding}
+                  onClick={() => void transit.slide('prev')}
+                >
+                  <Icon name="chevron-left" size={16} /> {transit.sliding === 'prev' ? '前の便を探しています…' : '1本前'}
+                </button>
+              )}
               <TransitResultList plans={plans} selectedId={selected?.id} onSelect={openMap} />
+              {timeType !== 'last' && (
+                <button
+                  type="button"
+                  className="btn small block"
+                  style={{ marginTop: 10 }}
+                  disabled={!!transit.sliding}
+                  onClick={() => void transit.slide('next')}
+                >
+                  {transit.sliding === 'next' ? '次の便を探しています…' : '1本後'} <Icon name="chevron-right" size={16} />
+                </button>
+              )}
+              {transit.slideNote && <div className="alert info">{transit.slideNote}</div>}
               {!transit.moreLoaded && (
                 <button
                   type="button"
@@ -183,6 +216,9 @@ export function TransitPage() {
                 </button>
               )}
               {transit.moreError && <div className="alert warn">{transit.moreError}</div>}
+              <p style={{ fontSize: 11, color: 'var(--color-text-muted)', margin: '8px 2px 0' }}>
+                今月の NAVITIME API 利用: {readNavitimeUsage().count} / {NAVITIME_FREE_LIMIT} 回（この端末）
+              </p>
             </div>
             {selected && (
               <div className="results-detail">

@@ -145,4 +145,6 @@ export interface HistoryItem {
 export interface Settings {
   defaultMode: TravelMode;
   saveHistory: boolean;
+  /** 乗換案内で候補が少ないとき、後続便を自動で追加取得する（API を追加消費） */
+  autoFollowups: boolean;
 }

@@ -24,6 +24,7 @@ export type IconName =
   | 'locate'
   | 'swap'
   | 'chevron-left'
+  | 'chevron-right'
   | 'trash'
   | 'edit'
   | 'flag'
@@ -180,6 +181,9 @@ const ICONS: Record<IconName, Def> = {
   },
   'chevron-left': {
     stroke: <path d="M15 5l-7 7 7 7" />,
+  },
+  'chevron-right': {
+    stroke: <path d="M9 5l7 7-7 7" />,
   },
   trash: {
     stroke: <path d="M4 7h16M9.5 7V4h5v3M6 7l1 13h10l1-13M10 11v6M14 11v6" />,
