@@ -162,7 +162,7 @@ export function MyPage() {
               ariaLabel="NAVITIME API キー"
             />
             <p style={{ fontSize: 12, color: 'var(--color-text-muted)', margin: '6px 0 0' }}>
-              取得方法は乗換案内タブで検索したときに表示されます（RapidAPI で NAVITIME Route(totalnavi) の Basic プランを Subscribe）。
+              RapidAPI で NAVITIME Route(totalnavi) の Basic プランを Subscribe したあと、右上の Apps → アプリ名 → Authorization タブの「Application Key」がキーです。詳しい手順は乗換案内タブで検索したときに表示されます。
             </p>
           </div>
         )}

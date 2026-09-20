@@ -40,7 +40,7 @@ Google の公式 FAQ にあるとおり、**Routes API は日本の交通事業�
 
 1. [RapidAPI の NAVITIME Route(totalnavi)](https://rapidapi.com/navitimejapan-navitimejapan/api/navitime-route-totalnavi) を開き、Sign Up でアカウントを作成（無料）
 2. Pricing タブで **Basic（$0、月 500 リクエスト、50 リクエスト/分）** を Subscribe
-3. Endpoints タブのコード例にある `X-RapidAPI-Key` の値をコピーし、アプリの「マイページ → 設定 → NAVITIME 乗換 API キー」または乗換案内タブの案内欄に貼り付け
+3. 画面右上の [Apps](https://rapidapi.com/developer/apps) → 自動作成されたアプリ（default-application_…）→ **Authorization** タブの **Application Key**（英数字約 50 文字）をコピーし、アプリの「マイページ → 設定 → NAVITIME 乗換 API キー」または乗換案内タブの案内欄に貼り付け（Endpoints タブでコード例を生成した場合も同じキーが `x-rapidapi-key` に入ります）
 
 キーが無い場合、または無料枠を超えて 429 が返った場合は、乗換案内タブに「Google マップで乗換案内を開く」「Yahoo!乗換案内で開く」ボタンを表示して検索条件を引き渡します。今月の利用回数はマイページに表示されます（端末内のカウント）。時刻表機能は 1 回の表示で最大 6 リクエストを消費します。
 

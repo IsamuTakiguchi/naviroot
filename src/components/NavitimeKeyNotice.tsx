@@ -2,6 +2,7 @@ import { NAVITIME_FREE_LIMIT, saveNavitimeKey } from '../config';
 import { ApiKeyForm } from './ApiKeyForm';
 
 const RAPIDAPI_URL = 'https://rapidapi.com/navitimejapan-navitimejapan/api/navitime-route-totalnavi';
+const RAPIDAPI_APPS_URL = 'https://rapidapi.com/developer/apps';
 
 export const validateNavitimeKey = (k: string) =>
   k.length < 20 || !/^[A-Za-z0-9_-]+$/.test(k) ? 'RapidAPI のキー（英数字 50 文字前後）を貼り付けてください。' : undefined;
@@ -23,9 +24,19 @@ export function NavitimeKeyNotice({ compact }: { compact?: boolean }) {
             </a>
             を開き、右上の Sign Up からアカウントを作成します（Google アカウントでも可）。
           </li>
-          <li>「Pricing」タブで <strong>Basic（$0 / 月 {NAVITIME_FREE_LIMIT} 回）</strong> の「Subscribe」を押します。</li>
           <li>
-            「Endpoints」タブに戻ると、コード例の中に <code>X-RapidAPI-Key</code> の値（英数字の長い文字列）が表示されます。それをコピーして下に貼り付けます。
+            「Pricing」タブで <strong>Basic（$0 / 月 {NAVITIME_FREE_LIMIT} 回）</strong> の「Subscribe」を押します（未登録のままだと接続エラーになります）。
+          </li>
+          <li>
+            画面右上のメニューから{' '}
+            <a href={RAPIDAPI_APPS_URL} target="_blank" rel="noreferrer">
+              Apps
+            </a>
+            を開き、自動で作られているアプリ（default-application_…）を選んで <strong>Authorization</strong> タブを開きます。
+            <strong>Application Key</strong> 欄の英数字約 50 文字がキーです。コピーして下に貼り付けます。
+            <div style={{ fontSize: 12, color: 'var(--color-text-muted)', marginTop: 4 }}>
+              補足: Endpoints タブでコード例を生成した場合も、同じキーが <code>x-rapidapi-key</code> として埋め込まれます。
+            </div>
           </li>
         </ol>
       )}
