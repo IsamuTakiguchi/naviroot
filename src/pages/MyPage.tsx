@@ -7,13 +7,17 @@ import { useHistory } from '../hooks/useHistory';
 import { useSettings } from '../hooks/useSettings';
 import { queryToParams } from '../lib/query';
 import { MODE_LABEL } from '../lib/format';
-import { hasApiKey } from '../config';
+import { apiKeySource, clearApiKey, hasApiKey } from '../config';
+import { ApiKeyForm } from '../components/ApiKeyForm';
+import { useState } from 'react';
 
 export function MyPage() {
   const navigate = useNavigate();
   const favorites = useFavorites();
   const history = useHistory();
   const { settings, update } = useSettings();
+  const [editingKey, setEditingKey] = useState(false);
+  const keySource = apiKeySource();
 
   const openFavorite = (f: Favorite) => {
     if (f.kind === 'route') {
@@ -73,12 +77,36 @@ export function MyPage() {
           <span>検索履歴を保存する</span>
           <input type="checkbox" checked={settings.saveHistory} onChange={(e) => update({ saveHistory: e.target.checked })} />
         </div>
-        <div className="toggle" style={{ borderBottom: 0 }}>
+        <div className="toggle" style={{ borderBottom: 0, flexWrap: 'wrap', gap: 8 }}>
           <span>Google Maps API キー</span>
-          <span style={{ color: hasApiKey() ? 'var(--color-success)' : 'var(--color-danger)', fontSize: 13 }}>
-            {hasApiKey() ? '設定済み' : '未設定'}
+          <span className="row">
+            <span style={{ color: hasApiKey() ? 'var(--color-success)' : 'var(--color-danger)', fontSize: 13 }}>
+              {keySource === 'stored' ? '設定済み（この端末）' : keySource === 'env' ? '設定済み（ビルド時）' : '未設定'}
+            </span>
+            <button type="button" className="btn small" onClick={() => setEditingKey((v) => !v)}>
+              {editingKey ? '閉じる' : hasApiKey() ? '変更' : '設定'}
+            </button>
+            {keySource === 'stored' && (
+              <button
+                type="button"
+                className="btn small danger"
+                onClick={() => {
+                  if (window.confirm('この端末に保存した API キーを削除しますか？')) {
+                    clearApiKey();
+                    window.location.reload();
+                  }
+                }}
+              >
+                削除
+              </button>
+            )}
           </span>
         </div>
+        {editingKey && (
+          <div style={{ paddingTop: 10 }}>
+            <ApiKeyForm compact />
+          </div>
+        )}
       </div>
       <p style={{ fontSize: 12, color: 'var(--color-text-muted)' }}>
         naviroot v{__APP_VERSION__} ・ 地図・経路データ: Google Maps Platform

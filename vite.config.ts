@@ -1,10 +1,14 @@
 import { defineConfig } from 'vitest/config';
+import { loadEnv } from 'vite';
 import react from '@vitejs/plugin-react';
 import { VitePWA } from 'vite-plugin-pwa';
 
 import pkg from './package.json';
 
+const base = loadEnv('', process.cwd(), 'VITE_').VITE_BASE_PATH || '/';
+
 export default defineConfig({
+  base,
   define: { __APP_VERSION__: JSON.stringify(pkg.version) },
   plugins: [
     react(),
@@ -16,8 +20,8 @@ export default defineConfig({
         short_name: 'naviroot',
         description: '乗換案内・地図ルート検索・スポット検索ができるナビアプリ',
         lang: 'ja',
-        start_url: '/',
-        scope: '/',
+        start_url: base,
+        scope: base,
         display: 'standalone',
         background_color: '#ffffff',
         theme_color: '#0b57d0',
@@ -29,7 +33,7 @@ export default defineConfig({
       },
       workbox: {
         globPatterns: ['**/*.{js,css,html,svg,png,ico,woff2}'],
-        navigateFallback: '/index.html',
+        navigateFallback: `${base}index.html`,
         runtimeCaching: [
           {
             // Google Maps の規約上、地図タイル・API レスポンスはキャッシュしない

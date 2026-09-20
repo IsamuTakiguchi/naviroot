@@ -9,42 +9,41 @@ NAVITIME 風の経路検索アプリです。Google Maps Platform を使い、�
 - **お気に入り・履歴**: 自宅・職場・スポット・ルートの保存、検索履歴からの再検索（端末内の localStorage に保存）
 - **PWA**: ホーム画面に追加してアプリのように利用可能。オフライン時もお気に入り・履歴は閲覧可能
 
-## セットアップ
+## 最短の使い方（インストール不要）
 
-### 1. Google Maps API キーを用意する
+このリポジトリは push のたびに GitHub Actions が自動でビルドし、GitHub Pages に公開します。
 
-1. [Google Cloud Console](https://console.cloud.google.com/google/maps-apis) でプロジェクトを作成し、請求先アカウントを紐付けます（月 $200 分の無料枠があります）。
-2. 次の API を有効化します。
-   - Maps JavaScript API
-   - Places API
-   - Directions API
-3. API キーを作成します。公開する場合は「HTTP リファラー」でアプリの URL に制限してください。
+1. **公開 URL を開く**: `https://isamutakiguchi.github.io/naviroot/`
+   - 初回のみ: GitHub Free の個人アカウントでは **非公開リポジトリで GitHub Pages が使えません**。リポジトリの Settings → General → Danger Zone → **Change visibility → Public** にすると、次回の Actions 実行から公開されます（コードに秘密情報は含まれていません。API キーは端末内にのみ保存されます）。GitHub Pro 以上なら非公開のままでも公開できます。
+   - Actions の結果は [Actions タブ](https://github.com/IsamuTakiguchi/naviroot/actions) で確認できます。
+2. **API キーを貼り付ける**: 初回起動時の画面の手順（約 5 分）に沿って Google Maps API キーを取得し、入力欄に貼り付けて「保存して開始」を押します。キーはその端末のブラウザにだけ保存されます。
+3. **ホーム画面に追加**: iPhone は共有ボタン →「ホーム画面に追加」、Android はブラウザメニュー →「アプリをインストール」。
 
-### 2. 環境変数を設定する
+## API キーの取得手順
 
-```bash
-cp .env.example .env
-# .env を開いてキーを記入
-VITE_GOOGLE_MAPS_API_KEY=取得したキー
-```
+1. [Google Cloud Console でプロジェクトを作成](https://console.cloud.google.com/projectcreate)（初回は請求先アカウントの登録が必要。毎月 $200 分の無料枠あり）
+2. 次の 3 つの API を有効化: [Maps JavaScript API](https://console.cloud.google.com/apis/library/maps-backend.googleapis.com) / [Places API](https://console.cloud.google.com/apis/library/places-backend.googleapis.com) / [Directions API](https://console.cloud.google.com/apis/library/directions-backend.googleapis.com)
+3. [認証情報](https://console.cloud.google.com/apis/credentials) →「認証情報を作成」→「API キー」
+4. （推奨）キーの「アプリケーションの制限」を「ウェブサイト」にし、`https://isamutakiguchi.github.io/*` のみ許可する
 
-`VITE_GOOGLE_MAPS_MAP_ID` は任意です（Cloud Console で作成した Map ID を指定するとスタイル付き地図になります）。
+キーの変更・削除は、アプリの「マイページ → 設定 → Google Maps API キー」から行えます。
 
-### 3. 起動する
+## 開発者向け: ローカルで動かす
 
 ```bash
 npm install
-npm run dev        # 開発サーバー http://localhost:5173
-npm run build      # 型チェック + 本番ビルド（dist/）
-npm run preview    # ビルド結果をローカル確認
-npm run test       # ユニットテスト
+cp .env.example .env   # VITE_GOOGLE_MAPS_API_KEY を記入（アプリ内で貼り付ける場合は不要）
+npm run dev            # 開発サーバー http://localhost:5173
+npm run build          # 型チェック + 本番ビルド（dist/）
+npm run preview        # ビルド結果をローカル確認
+npm run test           # ユニットテスト
 ```
 
-キーが未設定の場合は、アプリ起動時に設定手順の案内画面が表示されます。
+サブパスで配信する場合は `VITE_BASE_PATH=/naviroot/ npm run build` のように base を指定します（GitHub Actions では自動設定）。
 
 ## PWA として使う
 
-`npm run build` の成果物（`dist/`）を HTTPS で配信すると、スマホのブラウザで「ホーム画面に追加」できます。
+GitHub Pages（HTTPS）で公開された URL をスマホのブラウザで開くと「ホーム画面に追加」できます。
 Service Worker はアプリ本体をキャッシュしますが、Google Maps の地図・API レスポンスは規約に従いキャッシュしません。
 
 ## 注意事項
@@ -59,7 +58,7 @@ Service Worker はアプリ本体をキャッシュしますが、Google Maps �
 ```
 src/
 ├── App.tsx            画面シェル（ヘッダー・下部タブ・ルーティング・APIProvider）
-├── config.ts          APIキー、既定の地図中心、各種上限
+├── config.ts          APIキー（端末保存 / ビルド時環境変数）、既定の地図中心、各種上限
 ├── types.ts           Place / RouteQuery / TransitPlan などの型
 ├── lib/
 │   ├── directions.ts  DirectionsService の Promise 化・リクエスト生成・エラー日本語化
@@ -71,4 +70,5 @@ src/
 ├── hooks/             位置情報・お気に入り・履歴・設定・オンライン状態・経路検索
 ├── components/        入力フォーム・地図・結果一覧・詳細タイムライン・時刻表など
 └── pages/             乗換案内 / 地図・経路 / スポット検索 / 時刻表 / マイページ
+.github/workflows/deploy.yml   テスト → ビルド → GitHub Pages へ自動デプロイ
 ```

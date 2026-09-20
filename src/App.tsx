@@ -8,7 +8,7 @@ import { MapRoutePage } from './pages/MapRoutePage';
 import { SearchPage } from './pages/SearchPage';
 import { TimetablePage } from './pages/TimetablePage';
 import { MyPage } from './pages/MyPage';
-import { GOOGLE_MAPS_API_KEY, hasApiKey } from './config';
+import { getApiKey, hasApiKey } from './config';
 import { useOnline } from './hooks/useOnline';
 
 const TITLES: Record<string, string> = {
@@ -66,7 +66,7 @@ export default function App() {
   const [mapsError, setMapsError] = useState<string | undefined>();
   const content = (
     <MapsErrorContext.Provider value={mapsError}>
-      <BrowserRouter>
+      <BrowserRouter basename={import.meta.env.BASE_URL}>
         <Shell />
       </BrowserRouter>
     </MapsErrorContext.Provider>
@@ -74,7 +74,7 @@ export default function App() {
   if (!hasApiKey()) return content;
   return (
     <APIProvider
-      apiKey={GOOGLE_MAPS_API_KEY}
+      apiKey={getApiKey()}
       language="ja"
       region="JP"
       libraries={['places', 'routes', 'geocoding']}
