@@ -1,0 +1,151 @@
+import { useState } from 'react';
+import type { Place, TimeType } from '../types';
+import { PlaceInput } from './PlaceInput';
+import { useGeolocation } from '../hooks/useGeolocation';
+import { useFavorites } from '../hooks/useFavorites';
+import { toDateTimeLocal } from '../lib/format';
+
+interface Props {
+  from?: Place;
+  to?: Place;
+  onFromChange: (p: Place | undefined) => void;
+  onToChange: (p: Place | undefined) => void;
+  time?: string;
+  timeType?: TimeType;
+  onTimeChange?: (time: string | undefined, timeType: TimeType) => void;
+  showTime?: boolean;
+  onSubmit: () => void;
+  submitLabel?: string;
+  loading?: boolean;
+}
+
+const TIME_TYPES: { key: TimeType; label: string }[] = [
+  { key: 'departure', label: '出発' },
+  { key: 'arrival', label: '到着' },
+  { key: 'first', label: '始発' },
+  { key: 'last', label: '終電' },
+];
+
+export function RouteForm(props: Props) {
+  const { from, to, onFromChange, onToChange, time, timeType = 'departure', onTimeChange, showTime, onSubmit, loading } =
+    props;
+  const geo = useGeolocation();
+  const { home, work } = useFavorites();
+  const [locatingFor, setLocatingFor] = useState<'from' | 'to' | null>(null);
+
+  const useCurrent = async (target: 'from' | 'to') => {
+    setLocatingFor(target);
+    const pos = await geo.locate();
+    setLocatingFor(null);
+    if (!pos) return;
+    const place: Place = { name: '現在地', location: pos };
+    if (target === 'from') onFromChange(place);
+    else onToChange(place);
+  };
+
+  const swap = () => {
+    onFromChange(to);
+    onToChange(from);
+  };
+
+  const timeValue = time ?? toDateTimeLocal(new Date());
+  const canSubmit = !!from?.name && !!to?.name && !loading;
+
+  return (
+    <form
+      className="card"
+      onSubmit={(e) => {
+        e.preventDefault();
+        if (canSubmit) onSubmit();
+      }}
+    >
+      <div className="route-form">
+        <div className="dots">
+          <span className="dot" />
+          <span className="line" />
+          <span className="dot to" />
+        </div>
+        <PlaceInput
+          value={from}
+          placeholder="出発地（駅名・住所・スポット）"
+          onChange={onFromChange}
+          onLocate={() => useCurrent('from')}
+          locating={locatingFor === 'from'}
+        />
+        <button type="button" className="icon-btn swap" aria-label="出発地と目的地を入れ替え" onClick={swap}>
+          ⇅
+        </button>
+        <PlaceInput
+          value={to}
+          placeholder="目的地（駅名・住所・スポット）"
+          onChange={onToChange}
+          onLocate={() => useCurrent('to')}
+          locating={locatingFor === 'to'}
+          onSubmit={() => {
+            if (canSubmit) onSubmit();
+          }}
+        />
+      </div>
+      {geo.error && <div className="alert error">{geo.error}</div>}
+      {(home || work) && (
+        <div className="chips" style={{ marginTop: 8 }}>
+          {home && (
+            <>
+              <button type="button" className="chip" onClick={() => onToChange(home)}>
+                🏠 自宅へ
+              </button>
+              <button type="button" className="chip" onClick={() => onFromChange(home)}>
+                🏠 自宅から
+              </button>
+            </>
+          )}
+          {work && (
+            <>
+              <button type="button" className="chip" onClick={() => onToChange(work)}>
+                🏢 職場へ
+              </button>
+              <button type="button" className="chip" onClick={() => onFromChange(work)}>
+                🏢 職場から
+              </button>
+            </>
+          )}
+        </div>
+      )}
+      {showTime && onTimeChange && (
+        <div className="time-row">
+          <div className="segmented" style={{ flex: '1 1 100%' }}>
+            {TIME_TYPES.map((t) => (
+              <button
+                key={t.key}
+                type="button"
+                className={timeType === t.key ? 'active' : ''}
+                onClick={() => onTimeChange(time, t.key)}
+              >
+                {t.label}
+              </button>
+            ))}
+          </div>
+          {timeType === 'first' || timeType === 'last' ? (
+            <input
+              type="date"
+              value={timeValue.slice(0, 10)}
+              onChange={(e) => onTimeChange(e.target.value ? `${e.target.value}T12:00` : undefined, timeType)}
+            />
+          ) : (
+            <input
+              type="datetime-local"
+              value={timeValue}
+              onChange={(e) => onTimeChange(e.target.value || undefined, timeType)}
+            />
+          )}
+          <button type="button" className="btn small" onClick={() => onTimeChange(undefined, timeType)}>
+            現在時刻
+          </button>
+        </div>
+      )}
+      <button type="submit" className="btn primary block" style={{ marginTop: 12 }} disabled={!canSubmit}>
+        {loading ? '検索中…' : (props.submitLabel ?? '検索')}
+      </button>
+    </form>
+  );
+}
