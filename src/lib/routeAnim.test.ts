@@ -58,8 +58,8 @@ describe('routeAnim', () => {
   it('drawDuration grows with the path but stays bounded', () => {
     expect(drawDuration(0)).toBe(0);
     expect(drawDuration(1)).toBe(0);
-    expect(drawDuration(10)).toBe(560);
-    expect(drawDuration(5000)).toBe(1600);
+    expect(drawDuration(10)).toBe(1220);
+    expect(drawDuration(5000)).toBe(3600);
     expect(drawDuration(50)).toBeLessThan(drawDuration(100));
   });
 

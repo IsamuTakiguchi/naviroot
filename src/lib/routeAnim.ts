@@ -5,8 +5,11 @@ import type { LatLng } from '../types';
 /** 経路を描き切るまでの時間。長い経路ほど少し長くかける（上限あり） */
 export function drawDuration(points: number): number {
   if (points <= 1) return 0;
-  return Math.min(1600, 500 + points * 6);
+  return Math.min(3600, 1100 + points * 12);
 }
+
+/** 流れる破線が一周する時間 */
+export const DASH_PERIOD_MS = 3600;
 
 /** ease-out cubic（最初は速く、終わりはゆっくり） */
 export function easeOut(t: number): number {
@@ -25,7 +28,7 @@ export function revealCount(elapsed: number, duration: number, total: number): n
 }
 
 /** 流れる破線のオフセット（% 表記）。0→100% を繰り返す。 */
-export function dashOffset(elapsed: number, period = 1600): string {
+export function dashOffset(elapsed: number, period = DASH_PERIOD_MS): string {
   const t = ((elapsed % period) + period) % period;
   return `${((t / period) * 100).toFixed(1)}%`;
 }
