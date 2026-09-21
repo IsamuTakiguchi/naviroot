@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { LatLng, PlanSegment } from '../types';
 import { buildLegs, cumulative, journeyAt, journeyDuration, legTimings, nearestIndex, pointAt, splitIndices } from './journey';
-import { glyphFor, stepPhase, tokenSvg } from './token';
+import { glyphFor, stepPhase, TOKEN_ANCHOR, TOKEN_SIZE, tokenSvg } from './token';
 
 const line = (n: number): LatLng[] => Array.from({ length: n }, (_, i) => ({ lat: 34, lng: 135 + i * 0.01 }));
 
@@ -143,16 +143,30 @@ describe('token', () => {
     expect(glyphFor({ kind: 'walk', glyph: 'bicycle' })).toBe('bicycle');
   });
 
-  it('draws a valid SVG token whose look changes with the step', () => {
+  it('draws the illustration itself, with no plate or outline around it', () => {
     const a = tokenSvg('walk', '#14a34e', 0);
     const b = tokenSvg('walk', '#14a34e', 1);
     expect(a.startsWith('<svg')).toBe(true);
     expect(a.endsWith('</svg>')).toBe(true);
+    expect(a).toContain('viewBox="0 0 24 24"');
     expect(a).toContain('#14a34e');
     expect(a).not.toBe(b); // 足が動く
+    // コマの台紙（白い丸）と足元の影は付けない
+    expect(a).not.toContain('<ellipse');
+    expect(a).not.toContain('fill="#fff"');
+    expect(a).not.toContain('<g transform');
     for (const g of ['train', 'bus', 'tram', 'car', 'bicycle'] as const) {
-      expect(tokenSvg(g, '#2f9bf0').startsWith('<svg')).toBe(true);
+      const svg = tokenSvg(g, '#2f9bf0');
+      expect(svg.startsWith('<svg')).toBe(true);
+      expect(svg).toContain(`width="${TOKEN_SIZE}"`);
+      expect(svg).not.toContain('<ellipse');
     }
+  });
+
+  it('anchors the illustration at its feet', () => {
+    expect(TOKEN_ANCHOR.x).toBe(TOKEN_SIZE / 2);
+    expect(TOKEN_ANCHOR.y).toBeGreaterThan(TOKEN_SIZE * 0.9);
+    expect(TOKEN_ANCHOR.y).toBeLessThanOrEqual(TOKEN_SIZE);
   });
 
   it('stepPhase alternates, faster on foot than on a vehicle', () => {

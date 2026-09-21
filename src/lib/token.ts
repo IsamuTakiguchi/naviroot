@@ -76,14 +76,17 @@ function glyphBody(glyph: TokenGlyph, step: number, color: string): string {
   }
 }
 
-/** コマの見た目（白い丸の台紙 + 色の縁 + 絵柄）。data URL を返す。 */
+/** 地図に置くイラストの大きさ（px） */
+export const TOKEN_SIZE = 44;
+
+/** イラストの基準点。足元（絵柄の下端）が経路の上に乗るようにする */
+export const TOKEN_ANCHOR = { x: TOKEN_SIZE / 2, y: TOKEN_SIZE * (23 / 24) };
+
+/** 地図に置くイラスト（台紙や縁取りは付けず、絵柄そのまま）。 */
 export function tokenSvg(glyph: TokenGlyph, color: string, step = 0): string {
-  const body = glyphBody(glyph, step, color);
   return [
-    `<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 48 48">`,
-    `<ellipse cx="24" cy="42" rx="9" ry="3" fill="rgba(0,0,0,0.18)"/>`,
-    `<circle cx="24" cy="22" r="15" fill="#fff" stroke="${color}" stroke-width="3"/>`,
-    `<g transform="translate(12 10)">${body}</g>`,
+    `<svg xmlns="http://www.w3.org/2000/svg" width="${TOKEN_SIZE}" height="${TOKEN_SIZE}" viewBox="0 0 24 24">`,
+    glyphBody(glyph, step, color),
     `</svg>`,
   ].join('');
 }

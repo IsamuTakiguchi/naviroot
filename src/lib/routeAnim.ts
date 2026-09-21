@@ -1,6 +1,6 @@
 import type { LatLng } from '../types';
 import { journeyAt, legTimings, type JourneyLeg } from './journey';
-import { glyphFor, stepPhase, tokenDataUrl } from './token';
+import { glyphFor, stepPhase, TOKEN_ANCHOR, TOKEN_SIZE, tokenDataUrl } from './token';
 
 /** 地図上の経路を「描いていく」演出のための計算（DOM に依存しない部分） */
 
@@ -161,8 +161,8 @@ export function runJourney(params: RunJourneyParams): () => void {
 
   const iconFor = (glyph: ReturnType<typeof glyphFor>, c: string, step: number) => ({
     url: tokenDataUrl(glyph, c, step),
-    scaledSize: new maps.Size(48, 48),
-    anchor: new maps.Point(24, 34),
+    scaledSize: new maps.Size(TOKEN_SIZE, TOKEN_SIZE),
+    anchor: new maps.Point(TOKEN_ANCHOR.x, TOKEN_ANCHOR.y),
   });
 
   const first = journeyAt(legs, timings, 0)!;
