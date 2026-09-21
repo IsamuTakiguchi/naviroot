@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   buildNavitimeParams,
+  contractOptionParams,
   fetchNavitimeRoutes,
   itemToPlan,
   navitimeToPlans,
@@ -8,6 +9,7 @@ import {
   navitimeUrl,
   NavitimeError,
   requestNavitimePlans,
+  sectionPath,
   shapesToPath,
   stripOptionalParams,
   vehicleFromMove,
@@ -149,6 +151,57 @@ describe('navitime', () => {
     expect(plans[1].badges).toContain('fastest');
     expect(plans[0].badges).toContain('cheapest');
     expect(navitimeToPlans({})).toEqual([]);
+  });
+
+  it('contractOptionParams names only the option the error mentions', () => {
+    expect(contractOptionParams('bad usage on this contract　:　Multilingual')).toEqual(['lang']);
+    expect(contractOptionParams('bad usage on this contract : Shape')).toEqual(['shape', 'shape_color']);
+    expect(contractOptionParams('bad usage on this contract : Bus Data')).toEqual(['bus_data']);
+    expect(contractOptionParams('bad usage on this contract : Unknown')).toBeUndefined();
+    expect(contractOptionParams('invalid start_time')).toBeUndefined();
+    expect(contractOptionParams(undefined)).toBeUndefined();
+    expect(stripOptionalParams({ shape: 'true', lang: 'ja', start: '1,2' }, ['lang'])).toEqual({ shape: 'true', start: '1,2' });
+  });
+
+  it('sectionPath joins point coordinates and is used when shapes are missing', () => {
+    const coords = [
+      { lat: 34.69, lon: 135.76 },
+      { lat: 34.69, lon: 135.76 }, // 徒歩 0m で同じ座標が続く → 1 点にまとめる
+      { lat: 34.7, lon: 135.77 },
+      { lat: 34.71, lon: 135.78 },
+      undefined, // 座標なしの地点は飛ばす
+    ];
+    let i = 0;
+    const sections = item().sections.map((s) => (s.type === 'point' ? { ...s, coord: coords[i++] } : s));
+    expect(sectionPath(sections)).toEqual([
+      { lat: 34.69, lng: 135.76 },
+      { lat: 34.7, lng: 135.77 },
+      { lat: 34.71, lng: 135.78 },
+    ]);
+    expect(sectionPath(undefined)).toEqual([]);
+    const noShape = itemToPlan({ ...item(), sections, shapes: undefined }, 0);
+    expect(noShape.overviewPath).toHaveLength(3);
+    // 地点が 1 つしか無ければ線は引けない
+    expect(itemToPlan({ ...item(), shapes: undefined }, 0).overviewPath).toBeUndefined();
+    expect(noShape.pathDetailed).toBe(false);
+    expect(itemToPlan(item(), 0).pathDetailed).toBe(true);
+  });
+
+  it('requestNavitimePlans strips only the named option on a contract error, keeping shape', async () => {
+    const calls: string[] = [];
+    const fetchImpl = vi.fn(async (url: string) => {
+      calls.push(url);
+      if (calls.length === 1) {
+        return new Response(JSON.stringify({ status_code: 400, message: 'bad usage on this contract　:　Multilingual' }), { status: 400, statusText: 'Bad Request' });
+      }
+      return new Response(JSON.stringify({ items: [item()] }), { status: 200, statusText: 'OK' });
+    });
+    const plans = await requestNavitimePlans('KEY', { start: '1,2', goal: '3,4', lang: 'ja', shape: 'true', datum: 'wgs84' }, fetchImpl as unknown as typeof fetch);
+    expect(plans).toHaveLength(1);
+    expect(calls).toHaveLength(2);
+    expect(calls[1]).not.toContain('lang=');
+    expect(calls[1]).toContain('shape=true');
+    expect(calls[1]).toContain('datum=wgs84');
   });
 
   it('requestNavitimePlans retries without optional params on a contract error', async () => {

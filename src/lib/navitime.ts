@@ -183,9 +183,37 @@ export function buildNavitimeParams(
  */
 export const OPTIONAL_PARAMS = ['shape', 'shape_color', 'datum', 'coord_unit', 'lang', 'options', 'walk_route', 'walk_speed', 'bus_data'];
 
-export function stripOptionalParams(params: Record<string, string>): Record<string, string> {
+/** エラーが名指しするオプション名 → 外すべきパラメータ */
+const OPTION_PARAMS: Record<string, string[]> = {
+  multilingual: ['lang'],
+  language: ['lang'],
+  shape: ['shape', 'shape_color'],
+  routeshape: ['shape', 'shape_color'],
+  busdata: ['bus_data'],
+  bus: ['bus_data'],
+  bustimetable: ['bus_data'],
+  datum: ['datum'],
+  coordunit: ['coord_unit'],
+  order: ['order'],
+  unuse: ['unuse'],
+  walkroute: ['walk_route'],
+  walkspeed: ['walk_speed'],
+  options: ['options'],
+};
+
+/** 'bad usage on this contract : Multilingual' のような文言からオプション名を取り出す */
+export function contractOptionParams(detail: string | undefined): string[] | undefined {
+  if (!detail) return undefined;
+  const m = /contract[^:：]*[:：]\s*([A-Za-z_ ]+)/.exec(detail);
+  if (!m) return undefined;
+  const key = m[1].replace(/[\s_]/g, '').toLowerCase();
+  return OPTION_PARAMS[key];
+}
+
+export function stripOptionalParams(params: Record<string, string>, only?: string[]): Record<string, string> {
+  const remove = only ?? OPTIONAL_PARAMS;
   const out: Record<string, string> = {};
-  for (const [k, v] of Object.entries(params)) if (!OPTIONAL_PARAMS.includes(k)) out[k] = v;
+  for (const [k, v] of Object.entries(params)) if (!remove.includes(k)) out[k] = v;
   return out;
 }
 
@@ -207,9 +235,26 @@ export async function requestNavitimePlans(
   try {
     json = await fetchNavitimeRoutes(key, params, fetchImpl);
   } catch (err) {
-    const stripped = stripOptionalParams(params);
-    if (!isContractError(err) || Object.keys(stripped).length === Object.keys(params).length) throw err;
-    json = await fetchNavitimeRoutes(key, stripped, fetchImpl);
+    if (!isContractError(err)) throw err;
+    // まずエラーが名指しするオプションだけを外し（経路形状などを不必要に失わないため）、
+    // それでも契約外と言われたら任意パラメータをすべて外して最後の試行をする
+    const named = contractOptionParams(err instanceof NavitimeError ? err.detail : undefined);
+    const attempts: Record<string, string>[] = [];
+    for (const candidate of [stripOptionalParams(params, named), stripOptionalParams(params)]) {
+      const prev = attempts[attempts.length - 1] ?? params;
+      if (Object.keys(candidate).length < Object.keys(prev).length) attempts.push(candidate);
+    }
+    if (attempts.length === 0) throw err;
+    let result: NavitimeResponse | undefined;
+    for (let i = 0; i < attempts.length; i++) {
+      try {
+        result = await fetchNavitimeRoutes(key, attempts[i], fetchImpl);
+        break;
+      } catch (retryErr) {
+        if (!isContractError(retryErr) || i === attempts.length - 1) throw retryErr;
+      }
+    }
+    json = result as NavitimeResponse;
   }
   return navitimeToPlans(json, now);
 }
@@ -315,6 +360,20 @@ function boundsOf(path: LatLng[]): google.maps.LatLngBounds | undefined {
   return b;
 }
 
+/** shapes が無いとき用: sections の地点座標を順につないだ簡易経路 */
+export function sectionPath(sections: NavitimeSection[] | undefined): LatLng[] {
+  const out: LatLng[] = [];
+  for (const s of sections ?? []) {
+    if (s.type !== 'point') continue;
+    const c = s.coord;
+    if (!c || typeof c.lat !== 'number' || typeof c.lon !== 'number') continue;
+    const last = out[out.length - 1];
+    if (last && last.lat === c.lat && last.lng === c.lon) continue;
+    out.push({ lat: c.lat, lng: c.lon });
+  }
+  return out;
+}
+
 export function itemToPlan(item: NavitimeItem, index: number, now: Date = new Date()): TransitPlan {
   const segments: PlanSegment[] = [];
   const sections = item.sections ?? [];
@@ -355,7 +414,9 @@ export function itemToPlan(item: NavitimeItem, index: number, now: Date = new Da
   const merged = mergeWalks(segments);
   const transit = merged.filter((x): x is TransitSegment => x.kind === 'transit');
   const move = item.summary.move;
-  const path = shapesToPath(item.shapes);
+  const shape = shapesToPath(item.shapes);
+  // 形状データが無い契約でも地図に線を引けるよう、地点座標をつないだ簡易経路で代用する
+  const path = shape.length > 1 ? shape : sectionPath(item.sections);
   return {
     id: `nt-${index}`,
     departureTime: parseDate(move.from_time, now),
@@ -367,7 +428,8 @@ export function itemToPlan(item: NavitimeItem, index: number, now: Date = new Da
     segments: merged,
     summary: transit.map((x) => x.lineName).join(' → ') || '徒歩',
     bounds: boundsOf(path),
-    overviewPath: path.length ? path : undefined,
+    overviewPath: path.length > 1 ? path : undefined,
+    pathDetailed: shape.length > 1,
     badges: [],
   };
 }

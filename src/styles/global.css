@@ -929,6 +929,25 @@ select {
   padding: 0;
   overflow: hidden;
   height: 280px;
+  position: relative;
+}
+
+/* 経路形状が無いときの注記（地図の上に重ねる） */
+.map-note {
+  position: absolute;
+  left: 10px;
+  right: 10px;
+  bottom: 10px;
+  z-index: 2;
+  padding: 6px 10px;
+  border-radius: 10px;
+  font-size: 12px;
+  color: var(--muted);
+  background: var(--glass-strong);
+  border: 1px solid var(--glass-border);
+  backdrop-filter: blur(12px) saturate(140%);
+  -webkit-backdrop-filter: blur(12px) saturate(140%);
+  pointer-events: none;
 }
 
 /* 「早」「安」「楽」 */

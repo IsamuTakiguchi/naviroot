@@ -48,12 +48,43 @@ function RoutePolyline({ path, color }: { path?: google.maps.LatLng[] | LatLng[]
   return null;
 }
 
-function FitBounds({ bounds }: { bounds?: google.maps.LatLngBounds }) {
+/** 表示範囲を決める座標をまとめる（bounds → 経路 → 出発地/目的地 の順に採用） */
+export function fitPoints(
+  bounds: google.maps.LatLngBounds | undefined,
+  path: google.maps.LatLng[] | LatLng[] | undefined,
+  origin?: LatLng,
+  destination?: LatLng,
+): Array<google.maps.LatLng | LatLng> {
+  if (bounds) return [bounds.getNorthEast(), bounds.getSouthWest()];
+  if (path && path.length > 0) return path;
+  return [origin, destination].filter((p): p is LatLng => !!p);
+}
+
+function FitBounds({
+  bounds,
+  path,
+  origin,
+  destination,
+}: {
+  bounds?: google.maps.LatLngBounds;
+  path?: google.maps.LatLng[] | LatLng[];
+  origin?: LatLng;
+  destination?: LatLng;
+}) {
   const map = useMap();
   useEffect(() => {
-    if (!map || !bounds) return;
-    map.fitBounds(bounds, { top: 40, bottom: 40, left: 30, right: 30 });
-  }, [map, bounds]);
+    if (!map) return;
+    // 経路形状が無い場合でも出発地・目的地が見える範囲に合わせる
+    const points = fitPoints(bounds, path, origin, destination);
+    if (points.length === 0) return;
+    const b = new google.maps.LatLngBounds();
+    for (const p of points) b.extend(p);
+    if (points.length === 1) {
+      map.panTo(points[0]);
+      return;
+    }
+    map.fitBounds(b, { top: 40, bottom: 40, left: 30, right: 30 });
+  }, [map, bounds, path, origin, destination]);
   return null;
 }
 
@@ -109,7 +140,7 @@ export function MapView(props: MapViewProps) {
         }}
       >
         <RoutePolyline path={path} color={pathColor} />
-        <FitBounds bounds={bounds} />
+        <FitBounds bounds={bounds} path={path} origin={origin} destination={destination} />
         <PanTo center={center} zoom={zoom} />
         {origin && (
           <Marker position={origin} label={{ text: originLabel, color: '#fff', fontWeight: '700', fontSize: '12px' }} title="出発地" />

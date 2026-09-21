@@ -187,6 +187,7 @@ export function TransitPage() {
                     origin={from.location}
                     destination={to.location}
                   />
+                  {selected.overviewPath && !selected.pathDetailed && <div className="map-note">地図の経路は駅・停留所を直線でつないだ簡易表示です</div>}
                 </div>
               )}
               <TransitDetail
@@ -328,6 +329,7 @@ export function TransitPage() {
             origin={from.location}
             destination={to.location}
           />
+          {mapPlan?.overviewPath && !mapPlan.pathDetailed && <div className="map-note">地図の経路は駅・停留所を直線でつないだ簡易表示です</div>}
         </div>
       )}
       </div>

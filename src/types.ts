@@ -72,6 +72,8 @@ export interface TransitPlan {
   summary: string;
   bounds?: google.maps.LatLngBounds;
   overviewPath?: LatLng[];
+  /** 経路線が実際の線形か（false なら地点をつないだ簡易表示） */
+  pathDetailed?: boolean;
   /** 「早」「安」「楽」 */
   badges: PlanBadge[];
 }
