@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import type { FavoriteLabel, LatLng, Place } from '../types';
 import { PlaceInput } from '../components/PlaceInput';
@@ -15,7 +15,7 @@ export function SearchPage() {
   const [place, setPlace] = useState<Place | undefined>();
   const [center, setCenter] = useState<LatLng | undefined>();
   const [error, setError] = useState<string | undefined>();
-  const geo = useGeolocation();
+  const geo = useGeolocation({ auto: true });
   const favorites = useFavorites();
   const geocoding = useMapsLibrary('geocoding');
   const places = useMapsLibrary('places');
@@ -65,6 +65,14 @@ export function SearchPage() {
     const pos = await geo.locate();
     if (pos) setCenter({ ...pos });
   };
+
+  // スポット未選択のうちは、最初に現在地が分かった時点で地図をそこへ寄せる
+  const centeredOnce = useRef(false);
+  useEffect(() => {
+    if (centeredOnce.current || center || place || !geo.position) return;
+    centeredOnce.current = true;
+    setCenter({ ...geo.position });
+  }, [geo.position, center, place]);
 
   const go = (path: '/' | '/map', key: 'from' | 'to') => {
     if (!place) return;

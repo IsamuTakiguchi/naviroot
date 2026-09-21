@@ -38,7 +38,7 @@ export function MapRoutePage() {
   const [formOpen, setFormOpen] = useState(true);
   const [center, setCenter] = useState<LatLng | undefined>();
   const directions = useDirections();
-  const geo = useGeolocation();
+  const geo = useGeolocation({ auto: true });
   const history = useHistory();
   const favorites = useFavorites();
   const lastRun = useRef('');
@@ -99,6 +99,14 @@ export function MapRoutePage() {
     const pos = await geo.locate();
     if (pos) setCenter({ ...pos });
   };
+
+  // 経路がまだ無いときは、最初に現在地が分かった時点で地図をそこへ寄せる（その後は動かさない）
+  const centeredOnce = useRef(false);
+  useEffect(() => {
+    if (centeredOnce.current || center || routes.length > 0 || !geo.position) return;
+    centeredOnce.current = true;
+    setCenter({ ...geo.position });
+  }, [geo.position, center, routes.length]);
 
   const route = routes[routeIdx];
   const isFav = from && to ? favorites.hasRoute(from, to, mode) : false;
