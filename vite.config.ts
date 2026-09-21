@@ -16,8 +16,8 @@ export default defineConfig({
       registerType: 'autoUpdate',
       includeAssets: ['icons/icon.svg', 'icons/apple-touch-icon.png'],
       manifest: {
-        name: 'naviroot 乗換・経路案内',
-        short_name: 'naviroot',
+        name: 'NAVIROOT 乗換・経路案内',
+        short_name: 'NAVIROOT',
         description: '乗換案内・地図ルート検索・スポット検索ができるナビアプリ',
         lang: 'ja',
         start_url: base,

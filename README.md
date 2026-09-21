@@ -1,4 +1,4 @@
-# naviroot 乗換・経路案内 PWA
+# NAVIROOT 乗換・経路案内 PWA
 
 NAVITIME 風の経路検索アプリです。地図・徒歩／車ルート・スポット検索に Google Maps Platform、乗換案内に NAVITIME API（RapidAPI）を使い、以下の機能をブラウザ（PWA）で提供します。
 

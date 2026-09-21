@@ -199,7 +199,7 @@ export function MyPage() {
         )}
       </div>
       <p style={{ fontSize: 12, color: 'var(--color-text-muted)' }}>
-        naviroot v{__APP_VERSION__} ・ 地図・徒歩/車ルート・スポット: Google Maps Platform ・ 乗換案内: NAVITIME API
+        NAVIROOT v{__APP_VERSION__} ・ 地図・徒歩/車ルート・スポット: Google Maps Platform ・ 乗換案内: NAVITIME API
       </p>
     </div>
   );

@@ -13,7 +13,7 @@ export function BottomNav() {
     <nav className="bottom-nav" aria-label="メインナビゲーション">
       <div className="nav-brand" aria-hidden>
         <span className="logo">N</span>
-        naviroot
+        NAVIROOT
       </div>
       {ITEMS.map((it) => (
         <NavLink key={it.to} to={it.to} end={it.to === '/'} className={({ isActive }) => (isActive ? 'active' : '')}>

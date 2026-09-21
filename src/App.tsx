@@ -75,7 +75,7 @@ function Shell() {
   const online = useOnline();
   const mapsError = useContext(MapsErrorContext);
   const theme = useTheme();
-  const title = TITLES[location.pathname] ?? 'naviroot';
+  const title = TITLES[location.pathname] ?? 'NAVIROOT';
   const needsKey = !hasApiKey() && location.pathname !== '/my';
   const fullHeight = FULL_HEIGHT.has(location.pathname) && !needsKey;
 
@@ -96,7 +96,7 @@ function Shell() {
           <span className="brand-mark" aria-hidden>
             N
           </span>
-          naviroot
+          NAVIROOT
         </span>
       </header>
       {!online && <div className="offline-banner">オフラインです。お気に入り・履歴は閲覧できます。</div>}
