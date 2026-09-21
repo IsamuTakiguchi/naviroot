@@ -68,45 +68,46 @@
   --color-success: var(--success);
   --color-walk: var(--walk);
   --shadow: var(--glass-shadow-sm);
-  color-scheme: light dark;
+  color-scheme: light;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme='light']) {
-    --accent: #3fd0e8;
-    --accent-2: #5bb4ff;
-    --accent-3: #5ee0b8;
-    --accent-warm: #ff9273;
-    --bg-base: #061620;
-    --sky-veil: rgba(255, 255, 255, 0.05);
-    --blob-1: rgba(20, 120, 170, 0.5);
-    --blob-2: rgba(20, 150, 140, 0.4);
-    --blob-3: rgba(180, 140, 60, 0.28);
-    --blob-4: rgba(200, 100, 70, 0.28);
-    --glass: rgba(16, 42, 56, 0.6);
-    --glass-strong: rgba(14, 40, 54, 0.84);
-    --glass-soft: rgba(28, 60, 76, 0.45);
-    --glass-border: rgba(255, 255, 255, 0.14);
-    --glass-edge: rgba(255, 255, 255, 0.28);
-    --glass-shadow: 0 16px 40px rgba(0, 0, 0, 0.45), 0 1px 2px rgba(0, 0, 0, 0.4);
-    --glass-shadow-sm: 0 6px 18px rgba(0, 0, 0, 0.35);
-    --text: #eaf6fa;
-    --muted: #9db6c2;
-    --line: rgba(255, 255, 255, 0.12);
-    --field: rgba(255, 255, 255, 0.08);
-    --field-border: rgba(255, 255, 255, 0.12);
-    --walk: #8fa6b2;
-    --badge-easiest: #3fd0e8;
-    --badge-cheapest: #35d69b;
-    --nt-green: #2bc38c;
-    --nt-green-dark: #1fa977;
-    --nt-green-soft: rgba(43, 195, 140, 0.2);
-    --badge-fastest: #ff6a61;
-    --success: #35d69b;
-    --danger: #ff6a61;
-    --color-primary-dark: #8fe2f2;
-    --color-primary-soft: rgba(63, 208, 232, 0.22);
-  }
+/* ダーク配色。html[data-theme] は index.html のインラインスクリプトと useTheme が設定する */
+:root[data-theme='dark'] {
+  color-scheme: dark;
+
+  --accent: #3fd0e8;
+  --accent-2: #5bb4ff;
+  --accent-3: #5ee0b8;
+  --accent-warm: #ff9273;
+  --bg-base: #061620;
+  --sky-veil: rgba(255, 255, 255, 0.05);
+  --blob-1: rgba(20, 120, 170, 0.5);
+  --blob-2: rgba(20, 150, 140, 0.4);
+  --blob-3: rgba(180, 140, 60, 0.28);
+  --blob-4: rgba(200, 100, 70, 0.28);
+  --glass: rgba(16, 42, 56, 0.6);
+  --glass-strong: rgba(14, 40, 54, 0.84);
+  --glass-soft: rgba(28, 60, 76, 0.45);
+  --glass-border: rgba(255, 255, 255, 0.14);
+  --glass-edge: rgba(255, 255, 255, 0.28);
+  --glass-shadow: 0 16px 40px rgba(0, 0, 0, 0.45), 0 1px 2px rgba(0, 0, 0, 0.4);
+  --glass-shadow-sm: 0 6px 18px rgba(0, 0, 0, 0.35);
+  --text: #eaf6fa;
+  --muted: #9db6c2;
+  --line: rgba(255, 255, 255, 0.12);
+  --field: rgba(255, 255, 255, 0.08);
+  --field-border: rgba(255, 255, 255, 0.12);
+  --walk: #8fa6b2;
+  --badge-easiest: #3fd0e8;
+  --badge-cheapest: #35d69b;
+  --nt-green: #2bc38c;
+  --nt-green-dark: #1fa977;
+  --nt-green-soft: rgba(43, 195, 140, 0.2);
+  --badge-fastest: #ff6a61;
+  --success: #35d69b;
+  --danger: #ff6a61;
+  --color-primary-dark: #8fe2f2;
+  --color-primary-soft: rgba(63, 208, 232, 0.22);
 }
 
 *,
@@ -263,6 +264,48 @@ code {
   letter-spacing: 0.01em;
   margin: 0;
   flex: 1;
+}
+
+.theme-toggle {
+  color: var(--muted);
+  flex-shrink: 0;
+}
+
+.theme-toggle:hover {
+  color: var(--accent);
+}
+
+.theme-segmented {
+  display: inline-grid;
+  grid-auto-flow: column;
+  gap: 4px;
+  padding: 4px;
+  border-radius: 999px;
+  background: var(--field);
+  border: 1px solid var(--field-border);
+}
+
+.theme-segmented button {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border: 0;
+  background: transparent;
+  border-radius: 999px;
+  padding: 6px 11px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--muted);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.theme-segmented button.active {
+  background: var(--glass-strong);
+  color: var(--accent);
+  box-shadow:
+    0 2px 8px rgba(12, 90, 120, 0.12),
+    inset 0 1px 0 var(--glass-edge);
 }
 
 .app-header .brand {
@@ -720,16 +763,16 @@ select {
   background: rgba(255, 122, 89, 0.13);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme='light']) .alert.warn {
-    color: #ffb59a;
-  }
-  :root:not([data-theme='light']) .alert.error {
-    color: #ff8a80;
-  }
-  :root:not([data-theme='light']) .alert.info {
-    color: #9ccaff;
-  }
+:root[data-theme='dark'] .alert.warn {
+  color: #ffb59a;
+}
+
+:root[data-theme='dark'] .alert.error {
+  color: #ff8a80;
+}
+
+:root[data-theme='dark'] .alert.info {
+  color: #9ccaff;
 }
 
 .offline-banner {

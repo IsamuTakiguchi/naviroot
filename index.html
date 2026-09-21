@@ -12,6 +12,21 @@
     <link rel="icon" href="/icons/icon.svg" type="image/svg+xml" />
     <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
     <title>naviroot 乗換・経路案内</title>
+    <script>
+      // 保存済みのテーマを最初の描画前に反映する（切り替え時のちらつき防止）
+      (function () {
+        var dark = false;
+        try {
+          dark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+        } catch (e) {}
+        var mode = 'system';
+        try {
+          var raw = localStorage.getItem('naviroot:theme');
+          if (raw) mode = JSON.parse(raw);
+        } catch (e) {}
+        document.documentElement.dataset.theme = mode === 'light' || mode === 'dark' ? mode : dark ? 'dark' : 'light';
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

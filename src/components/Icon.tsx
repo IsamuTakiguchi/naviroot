@@ -30,6 +30,8 @@ export type IconName =
   | 'flag'
   | 'close'
   | 'print'
+  | 'sun'
+  | 'moon'
   | 'calendar'
   | 'route';
 
@@ -198,6 +200,17 @@ const ICONS: Record<IconName, Def> = {
   },
   close: {
     stroke: <path d="M6 6l12 12M18 6 6 18" />,
+  },
+  sun: {
+    stroke: (
+      <>
+        <circle cx="12" cy="12" r="4.4" />
+        <path d="M12 2.6v2.6M12 18.8v2.6M2.6 12h2.6M18.8 12h2.6M5.4 5.4l1.9 1.9M16.7 16.7l1.9 1.9M18.6 5.4l-1.9 1.9M7.3 16.7l-1.9 1.9" />
+      </>
+    ),
+  },
+  moon: {
+    fill: <path d="M20.5 14.2A8.6 8.6 0 0 1 9.8 3.5a8.8 8.8 0 1 0 10.7 10.7z" />,
   },
   print: {
     stroke: <path d="M7 9V3.5h10V9M7 18H4.5V9.5h15V18H17M7 14.5h10V21H7z" />,

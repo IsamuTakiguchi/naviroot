@@ -10,6 +10,9 @@ import { TimetablePage } from './pages/TimetablePage';
 import { MyPage } from './pages/MyPage';
 import { getApiKey, hasApiKey } from './config';
 import { useOnline } from './hooks/useOnline';
+import { useTheme } from './hooks/useTheme';
+import { nextTheme } from './lib/theme';
+import { Icon } from './components/Icon';
 import { explainMapsError, getLastMapsErrorCode, MAPS_AUTH_ERROR_EVENT, type MapsAuthErrorDetail } from './lib/mapsErrors';
 
 const TITLES: Record<string, string> = {
@@ -71,6 +74,7 @@ function Shell() {
   const location = useLocation();
   const online = useOnline();
   const mapsError = useContext(MapsErrorContext);
+  const theme = useTheme();
   const title = TITLES[location.pathname] ?? 'naviroot';
   const needsKey = !hasApiKey() && location.pathname !== '/my';
   const fullHeight = FULL_HEIGHT.has(location.pathname) && !needsKey;
@@ -79,6 +83,15 @@ function Shell() {
     <div className="app">
       <header className="app-header">
         <h1>{title}</h1>
+        <button
+          type="button"
+          className="icon-btn theme-toggle"
+          onClick={() => theme.setMode(nextTheme(theme.mode, theme.resolved === 'dark'))}
+          title={theme.resolved === 'dark' ? 'ライトテーマに切り替え' : 'ダークテーマに切り替え'}
+          aria-label={theme.resolved === 'dark' ? 'ライトテーマに切り替え' : 'ダークテーマに切り替え'}
+        >
+          <Icon name={theme.resolved === 'dark' ? 'sun' : 'moon'} size={20} />
+        </button>
         <span className="brand">naviroot</span>
       </header>
       {!online && <div className="offline-banner">オフラインです。お気に入り・履歴は閲覧できます。</div>}

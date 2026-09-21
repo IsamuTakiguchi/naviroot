@@ -21,12 +21,15 @@ import { ApiKeyForm } from '../components/ApiKeyForm';
 import { validateNavitimeKey } from '../components/NavitimeKeyNotice';
 import { useState } from 'react';
 import { Icon } from '../components/Icon';
+import { useTheme } from '../hooks/useTheme';
+import { THEME_LABEL, THEME_MODES, type ThemeMode } from '../lib/theme';
 
 export function MyPage() {
   const navigate = useNavigate();
   const favorites = useFavorites();
   const history = useHistory();
   const { settings, update } = useSettings();
+  const theme = useTheme();
   const [editingKey, setEditingKey] = useState(false);
   const [editingNavitime, setEditingNavitime] = useState(false);
   const keySource = apiKeySource();
@@ -77,6 +80,24 @@ export function MyPage() {
 
       <div className="section-title">設定</div>
       <div className="card">
+        <div className="toggle">
+          <span>テーマ</span>
+          <span className="segmented theme-segmented">
+            {THEME_MODES.map((m) => (
+              <button
+                key={m}
+                type="button"
+                className={theme.mode === m ? 'active' : ''}
+                aria-pressed={theme.mode === m}
+                onClick={() => theme.setMode(m)}
+              >
+                {m === 'light' && <Icon name="sun" size={15} />}
+                {m === 'dark' && <Icon name="moon" size={15} />}
+                {THEME_LABEL[m as ThemeMode]}
+              </button>
+            ))}
+          </span>
+        </div>
         <div className="toggle">
           <span>地図ルートの既定の移動手段</span>
           <select value={settings.defaultMode} onChange={(e) => update({ defaultMode: e.target.value as TravelMode })}>
