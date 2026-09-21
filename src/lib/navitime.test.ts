@@ -8,6 +8,7 @@ import {
   mergePlans,
   navitimeUrl,
   NavitimeError,
+  legBoundaries,
   requestNavitimePlans,
   sectionPath,
   shapesToPath,
@@ -185,6 +186,33 @@ describe('navitime', () => {
     expect(itemToPlan({ ...item(), shapes: undefined }, 0).overviewPath).toBeUndefined();
     expect(noShape.pathDetailed).toBe(false);
     expect(itemToPlan(item(), 0).pathDetailed).toBe(true);
+  });
+
+  it('builds journey legs so the token can walk and ride along the route', () => {
+    const coords = [
+      { lat: 34.69, lon: 135.76 },
+      { lat: 34.7, lon: 135.77 },
+      { lat: 34.71, lon: 135.78 },
+      { lat: 34.72, lon: 135.79 },
+      { lat: 34.73, lon: 135.8 },
+    ];
+    let i = 0;
+    const sections = item().sections.map((s) => (s.type === 'point' ? { ...s, coord: coords[i++] } : s));
+    // 徒歩 → バス → 電車 → 徒歩（連続する徒歩は 1 区間にまとまる）
+    expect(legBoundaries(sections)).toHaveLength(3);
+
+    const plan = itemToPlan({ ...item(), sections, shapes: undefined }, 0);
+    expect(plan.legs?.map((l) => l.kind)).toEqual(['walk', 'transit', 'transit', 'walk']);
+    expect(plan.legs?.[1].label).toBe('奈良交通バス 学園前駅行');
+    expect(plan.legs?.[1].vehicle).toBe('BUS');
+    expect(plan.legs?.[2].vehicle).toBe('RAIL');
+    // 各区間は線が引ける長さがあり、最後は目的地で終わる
+    expect(plan.legs?.every((l) => l.path.length >= 2)).toBe(true);
+    expect(plan.legs?.[plan.legs.length - 1].path.at(-1)).toEqual({ lat: 34.73, lng: 135.8 });
+
+    // 座標が欠けていても落ちない（時間の比で分ける）
+    expect(legBoundaries(item().sections)).toEqual([]);
+    expect(legBoundaries(undefined)).toEqual([]);
   });
 
   it('requestNavitimePlans strips only the named option on a contract error, keeping shape', async () => {

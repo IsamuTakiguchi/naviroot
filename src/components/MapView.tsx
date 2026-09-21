@@ -2,13 +2,16 @@ import { useEffect } from 'react';
 import { Map, Marker, useMap } from '@vis.gl/react-google-maps';
 import type { LatLng } from '../types';
 import { DEFAULT_CENTER, DEFAULT_ZOOM, GOOGLE_MAPS_MAP_ID } from '../config';
-import { drawRoute, prefersReducedMotion } from '../lib/routeAnim';
+import { drawDuration, drawRoute, prefersReducedMotion, runJourney } from '../lib/routeAnim';
+import type { JourneyLeg } from '../lib/journey';
 
 export interface MapViewProps {
   center?: LatLng;
   zoom?: number;
   path?: google.maps.LatLng[] | LatLng[];
   pathColor?: string;
+  /** 経路の上をコマが進む演出。区間ごとに徒歩・電車・バスの絵柄が変わる */
+  journey?: JourneyLeg[];
   bounds?: google.maps.LatLngBounds;
   origin?: LatLng;
   destination?: LatLng;
@@ -34,6 +37,25 @@ function RoutePolyline({ path, color }: { path?: google.maps.LatLng[] | LatLng[]
       reducedMotion: prefersReducedMotion(),
     });
   }, [map, path, color]);
+  return null;
+}
+
+/** 経路の上を進むコマ（徒歩・電車・バス） */
+function JourneyToken({ legs, color }: { legs?: JourneyLeg[]; color?: string }) {
+  const map = useMap();
+  useEffect(() => {
+    if (!map || !legs || legs.length === 0 || prefersReducedMotion()) return;
+    // 線を描き終えたころにコマが動き出す
+    const points = legs.reduce((a, l) => a + l.path.length, 0);
+    let stop: (() => void) | undefined;
+    const timer = setTimeout(() => {
+      stop = runJourney({ maps: google.maps, map, legs, color: color ?? '#14a34e' });
+    }, drawDuration(points) * 0.6);
+    return () => {
+      clearTimeout(timer);
+      stop?.();
+    };
+  }, [map, legs, color]);
   return null;
 }
 
@@ -102,6 +124,7 @@ export function MapView(props: MapViewProps) {
     zoom,
     path,
     pathColor,
+    journey,
     bounds,
     origin,
     destination,
@@ -129,6 +152,7 @@ export function MapView(props: MapViewProps) {
         }}
       >
         <RoutePolyline path={path} color={pathColor} />
+        <JourneyToken legs={journey} color={pathColor} />
         <FitBounds bounds={bounds} path={path} origin={origin} destination={destination} />
         <PanTo center={center} zoom={zoom} />
         {origin && (

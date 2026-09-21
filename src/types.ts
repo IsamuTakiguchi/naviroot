@@ -1,3 +1,5 @@
+import type { JourneyLeg } from './lib/journey';
+
 export interface LatLng {
   lat: number;
   lng: number;
@@ -74,6 +76,8 @@ export interface TransitPlan {
   overviewPath?: LatLng[];
   /** 経路線が実際の線形か（false なら地点をつないだ簡易表示） */
   pathDetailed?: boolean;
+  /** 地図の上をコマが進むときの区間割り（徒歩・乗車） */
+  legs?: JourneyLeg[];
   /** 「早」「安」「楽」 */
   badges: PlanBadge[];
 }

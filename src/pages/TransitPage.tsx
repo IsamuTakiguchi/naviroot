@@ -181,6 +181,7 @@ export function TransitPage() {
                   <MapView
                     path={selected.overviewPath}
                     bounds={selected.bounds}
+                    journey={selected.legs}
                     origin={from.location}
                     destination={to.location}
                   />
@@ -323,6 +324,7 @@ export function TransitPage() {
           <MapView
             path={mapPlan?.overviewPath}
             bounds={mapPlan?.bounds}
+            journey={mapPlan?.legs}
             origin={from.location}
             destination={to.location}
           />

@@ -14,8 +14,16 @@ import { toMapRoutes } from '../lib/directions';
 import { paramsToQuery, queryToParams } from '../lib/query';
 import { MODE_ICON, MODE_LABEL } from '../lib/format';
 import { Icon } from '../components/Icon';
+import type { JourneyLeg } from '../lib/journey';
+import type { TokenGlyph } from '../lib/token';
 
 const MODES: TravelMode[] = ['WALKING', 'DRIVING', 'BICYCLING'];
+const MODE_GLYPH: Record<TravelMode, TokenGlyph> = {
+  WALKING: 'walk',
+  DRIVING: 'car',
+  BICYCLING: 'bicycle',
+  TRANSIT: 'train',
+};
 const MODE_COLOR: Record<TravelMode, string> = {
   WALKING: '#14a34e',
   DRIVING: '#2f9bf0',
@@ -110,6 +118,24 @@ export function MapRoutePage() {
 
   const route = routes[routeIdx];
   const isFav = from && to ? favorites.hasRoute(from, to, mode) : false;
+  // 経路の上を歩く人・車・自転車のコマを進ませる
+  const journey = useMemo<JourneyLeg[] | undefined>(
+    () =>
+      route && route.overviewPath.length > 1
+        ? [
+            {
+              kind: mode === 'WALKING' ? 'walk' : 'transit',
+              vehicle: undefined,
+              glyph: MODE_GLYPH[mode],
+              color: MODE_COLOR[mode],
+              label: MODE_LABEL[mode],
+              path: route.overviewPath,
+              durationSec: route.durationSec,
+            },
+          ]
+        : undefined,
+    [route, mode],
+  );
 
   return (
     <div className="map-page">
@@ -119,6 +145,7 @@ export function MapRoutePage() {
           zoom={center ? 15 : undefined}
           path={route?.overviewPath}
           pathColor={MODE_COLOR[mode]}
+          journey={journey}
           bounds={route?.bounds}
           origin={from?.location ?? route?.overviewPath?.[0]}
           destination={to?.location ?? route?.overviewPath?.[route.overviewPath.length - 1]}

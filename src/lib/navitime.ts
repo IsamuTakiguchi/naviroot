@@ -1,6 +1,7 @@
 import type { LatLng, PlanSegment, TimeType, TransitFilter, TransitPlan, TransitSegment, TransitVehicle, WalkSegment } from '../types';
 import { formatFare, toDateTimeLocal } from './format';
 import { assignBadges, mergeWalks } from './transit';
+import { buildLegs } from './journey';
 import { bumpNavitimeUsage, NAVITIME_HOST } from '../config';
 
 /**
@@ -374,6 +375,31 @@ export function sectionPath(sections: NavitimeSection[] | undefined): LatLng[] {
   return out;
 }
 
+/**
+ * 移動区間の境目（乗換地点など）の座標。mergeWalks と同じく、連続する徒歩は 1 区間として扱う。
+ * 途中の座標が欠けている場合は空を返し、呼び出し側で所要時間の比による分割に任せる。
+ */
+export function legBoundaries(sections: NavitimeSection[] | undefined): LatLng[] {
+  const out: LatLng[] = [];
+  let prevKind: 'walk' | 'transit' | undefined;
+  let pending: LatLng | undefined;
+  for (const s of sections ?? []) {
+    if (s.type === 'point') {
+      const c = s.coord;
+      pending = c && typeof c.lat === 'number' && typeof c.lon === 'number' ? { lat: c.lat, lng: c.lon } : undefined;
+      continue;
+    }
+    if (s.type !== 'move') continue;
+    const kind: 'walk' | 'transit' = s.move === 'walk' ? 'walk' : 'transit';
+    if (prevKind !== undefined && !(prevKind === 'walk' && kind === 'walk')) {
+      if (!pending) return [];
+      out.push(pending);
+    }
+    prevKind = kind;
+  }
+  return out;
+}
+
 export function itemToPlan(item: NavitimeItem, index: number, now: Date = new Date()): TransitPlan {
   const segments: PlanSegment[] = [];
   const sections = item.sections ?? [];
@@ -430,6 +456,7 @@ export function itemToPlan(item: NavitimeItem, index: number, now: Date = new Da
     bounds: boundsOf(path),
     overviewPath: path.length > 1 ? path : undefined,
     pathDetailed: shape.length > 1,
+    legs: buildLegs(path, merged, legBoundaries(item.sections)),
     badges: [],
   };
 }

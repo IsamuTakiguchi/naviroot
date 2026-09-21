@@ -1,5 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { dashOffset, drawDuration, drawRoute, easeOut, prefersReducedMotion, revealCount } from './routeAnim';
+import { dashOffset, drawDuration, drawRoute, easeOut, prefersReducedMotion, revealCount, runJourney } from './routeAnim';
+import { buildLegs } from './journey';
+import type { PlanSegment } from '../types';
 
 /** google.maps.Polyline の代わり。呼ばれた内容を記録する。 */
 class FakePolyline {
@@ -155,6 +157,68 @@ describe('routeAnim', () => {
     FakePolyline.made = [];
     drawRoute({ Polyline, map, path: [path[0]], color: '#14a34e', raf: clock.raf, cancel: clock.cancel });
     expect(clock.pendingCount).toBe(0);
+  });
+
+  it('runJourney moves a token along the legs and swaps the icon per mode', () => {
+    const clock = fakeClock();
+    const path = Array.from({ length: 20 }, (_, i) => ({ lat: 34, lng: 135 + i * 0.01 }));
+    const walk: PlanSegment = { kind: 'walk', durationSec: 300, distanceM: 400, instruction: '徒歩' };
+    const ride: PlanSegment = {
+      kind: 'transit', lineName: '近鉄奈良線', vehicle: 'BUS', vehicleName: 'バス', headsign: '行',
+      departureStop: 'A', arrivalStop: 'B', departureTime: new Date(0), arrivalTime: new Date(1), numStops: 3, durationSec: 1800,
+    };
+    const legs = buildLegs(path, [walk, ride], [{ lat: 34, lng: 135.05 }]);
+    expect(legs).toHaveLength(2);
+
+    const calls: { position?: unknown; icon?: string; title?: string; map?: unknown } = {};
+    const positions: Array<{ lat: number; lng: number }> = [];
+    const icons: string[] = [];
+    class FakeMarker {
+      constructor(opts: Record<string, unknown>) {
+        calls.position = opts.position;
+        icons.push(((opts.icon as { url: string }).url ?? '').slice(0, 60));
+        calls.title = opts.title as string;
+      }
+      setPosition(p: { lat: number; lng: number }) { positions.push(p); }
+      setIcon(i: { url: string }) { icons.push(i.url.slice(0, 60)); }
+      setTitle(t: string) { calls.title = t; }
+      setMap(m: unknown) { calls.map = m; }
+    }
+    const maps = {
+      Marker: FakeMarker as unknown as never,
+      Size: class { constructor(public w: number, public h: number) {} } as unknown as never,
+      Point: class { constructor(public x: number, public y: number) {} } as unknown as never,
+    };
+
+    const stop = runJourney({
+      maps, map: {} as google.maps.Map, legs, color: '#14a34e', raf: clock.raf, cancel: clock.cancel,
+    });
+
+    // 出発地から始まり、徒歩の絵柄
+    expect(calls.position).toEqual(path[0]);
+    expect(calls.title).toBe('徒歩');
+
+    for (const t of [0, 400, 1200, 2400, 4000, 6000, 8000]) clock.step(1000 + t);
+    expect(positions.length).toBeGreaterThan(3);
+    // 前に進んでいる
+    expect(positions[positions.length - 1].lng).toBeGreaterThan(positions[0].lng);
+    // 区間が変わって乗り物の絵柄に差し替わった
+    expect(calls.title).toBe('近鉄奈良線');
+    expect(icons.length).toBeGreaterThan(1);
+
+    stop();
+    expect(calls.map).toBe(null);
+    expect(clock.pendingCount).toBe(0);
+  });
+
+  it('runJourney does nothing without legs', () => {
+    const clock = fakeClock();
+    const stop = runJourney({
+      maps: { Marker: class {} as never, Size: class {} as never, Point: class {} as never },
+      map: {} as google.maps.Map, legs: [], color: '#14a34e', raf: clock.raf, cancel: clock.cancel,
+    });
+    expect(clock.pendingCount).toBe(0);
+    expect(() => stop()).not.toThrow();
   });
 
   it('prefersReducedMotion reads the media query and tolerates its absence', () => {

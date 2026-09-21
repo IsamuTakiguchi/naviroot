@@ -1,4 +1,6 @@
 import type { LatLng } from '../types';
+import { journeyAt, legTimings, type JourneyLeg } from './journey';
+import { glyphFor, stepPhase, tokenDataUrl } from './token';
 
 /** 地図上の経路を「描いていく」演出のための計算（DOM に依存しない部分） */
 
@@ -115,5 +117,91 @@ export function drawRoute(params: DrawRouteParams): () => void {
   return () => {
     cancel(frame);
     remove();
+  };
+}
+
+/** コマの移動に使う地図 API（テストで差し替えられるよう最小限を受け取る） */
+export interface MarkerNs {
+  Marker: new (opts: Record<string, unknown>) => {
+    setPosition(p: LatLng): void;
+    setIcon(icon: unknown): void;
+    setTitle(t: string): void;
+    setMap(m: unknown): void;
+  };
+  Size: new (w: number, h: number) => unknown;
+  Point: new (x: number, y: number) => unknown;
+}
+
+export interface RunJourneyParams {
+  maps: MarkerNs;
+  map: google.maps.Map;
+  legs: JourneyLeg[];
+  /** 既定の色（路線色が無い区間で使う） */
+  color: string;
+  /** 全区間を走り切ったあと、少し止まってから繰り返す */
+  loop?: boolean;
+  pauseMs?: number;
+  raf?: (cb: (now: number) => void) => number;
+  cancel?: (id: number) => void;
+}
+
+/**
+ * 桃鉄のコマのように、経路の上を人／電車／バスが進んでいく。
+ * 区間が変わると絵柄も変わり、歩いているときは足が動く。後片付け用の関数を返す。
+ */
+export function runJourney(params: RunJourneyParams): () => void {
+  const { maps, map, legs, color, loop = true, pauseMs = 1400 } = params;
+  const raf = params.raf ?? ((cb) => requestAnimationFrame(cb));
+  const cancel = params.cancel ?? ((id) => cancelAnimationFrame(id));
+  if (legs.length === 0) return () => {};
+
+  const timings = legTimings(legs);
+  const total = timings.reduce((a, x) => a + x, 0);
+  const cycle = total + (loop ? pauseMs : 0);
+
+  const iconFor = (glyph: ReturnType<typeof glyphFor>, c: string, step: number) => ({
+    url: tokenDataUrl(glyph, c, step),
+    scaledSize: new maps.Size(48, 48),
+    anchor: new maps.Point(24, 34),
+  });
+
+  const first = journeyAt(legs, timings, 0)!;
+  const firstGlyph = glyphFor(first.leg);
+  const marker = new maps.Marker({
+    position: first.pos,
+    map,
+    icon: iconFor(firstGlyph, first.leg.color || color, 0),
+    title: first.leg.label,
+    zIndex: 20,
+    optimized: false,
+  });
+
+  let frame = 0;
+  let start: number | undefined;
+  let shown = `${firstGlyph}|0`;
+
+  const tick = (now: number) => {
+    start ??= now;
+    const elapsed = loop ? (now - start) % cycle : Math.min(now - start, total);
+    const at = journeyAt(legs, timings, elapsed);
+    if (at) {
+      marker.setPosition(at.pos);
+      const glyph = glyphFor(at.leg);
+      const step = stepPhase(glyph, elapsed);
+      const key = `${glyph}|${step}`;
+      // 絵柄が変わったときだけ差し替える（毎フレーム作り直さない）
+      if (key !== shown) {
+        shown = key;
+        marker.setIcon(iconFor(glyph, at.leg.color || color, step));
+        marker.setTitle(at.leg.label);
+      }
+    }
+    frame = raf(tick);
+  };
+  frame = raf(tick);
+
+  return () => {
+    cancel(frame);
+    marker.setMap(null);
   };
 }
