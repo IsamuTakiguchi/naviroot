@@ -7,9 +7,9 @@
 import { writeFileSync } from 'node:fs';
 import { deflateSync } from 'node:zlib';
 
-/** ターコイズ → スカイのグラデーション地に白のピン */
-const TOP = [14, 165, 196];
-const BOTTOM = [47, 155, 240];
+/** 緑のグラデーション地に白の太字「N」 */
+const TOP = [59, 196, 111];
+const BOTTOM = [14, 122, 58];
 const WHITE = [255, 255, 255, 255];
 const CLEAR = [0, 0, 0, 0];
 
@@ -59,7 +59,7 @@ function png(size, pixel) {
   ]);
 }
 
-/** 斜め方向のグラデーション（左上が濃いターコイズ、右下がスカイ） */
+/** 斜め方向のグラデーション（左上が明るい緑、右下が深い緑） */
 const gradient = (u, v) => {
   const t = Math.min(1, Math.max(0, (u + v) / 2));
   return [
@@ -70,19 +70,25 @@ const gradient = (u, v) => {
   ];
 };
 
-/** 地図ピン（頭の円 + 下向きの三角） */
-function inPin(u, v) {
-  const dx = u - 0.5;
-  const dy = v - 0.41;
-  if (dx * dx + dy * dy <= 0.22 * 0.22) return true;
-  if (v > 0.41 && v <= 0.81) {
-    const w = (0.22 * (0.81 - v)) / 0.4;
-    return Math.abs(dx) <= w;
-  }
-  return false;
-}
+/**
+ * 太字の「N」。左右の縦棒と、左上の角から右下の角へ走る斜め棒で構成する。
+ * 文字は 0.24..0.76 の正方形に収め、縦棒の太さは 0.14、斜め棒は水平幅 0.172（垂直方向の太さがほぼ同じになる値）。
+ */
+const N_LEFT = 0.24;
+const N_RIGHT = 0.76;
+const N_TOP = 0.25;
+const N_BOTTOM = 0.75;
+const N_BAR = 0.14;
+const N_DIAG = 0.172;
 
-const inHole = (u, v) => (u - 0.5) ** 2 + (v - 0.41) ** 2 <= 0.085 * 0.085;
+function inN(u, v) {
+  if (v < N_TOP || v > N_BOTTOM) return false;
+  if (u >= N_LEFT && u <= N_LEFT + N_BAR) return true;
+  if (u >= N_RIGHT - N_BAR && u <= N_RIGHT) return true;
+  const t = (v - N_TOP) / (N_BOTTOM - N_TOP);
+  const left = N_LEFT + t * (N_RIGHT - N_DIAG - N_LEFT);
+  return u >= left && u <= left + N_DIAG;
+}
 
 function rounded(u, v, r) {
   const cx = Math.min(Math.max(u, r), 1 - r);
@@ -96,28 +102,41 @@ function draw(u, v, maskable) {
   const s = maskable ? 0.7 : 1;
   const uu = (u - 0.5) / s + 0.5;
   const vv = (v - 0.5) / s + 0.5;
-  if (inHole(uu, vv)) return gradient(u, v);
-  if (inPin(uu, vv)) return WHITE;
-  return gradient(u, v);
+  return inN(uu, vv) ? WHITE : gradient(u, v);
 }
 
-writeFileSync('public/icons/icon-192.png', png(192, (u, v) => draw(u, v, false)));
-writeFileSync('public/icons/icon-512.png', png(512, (u, v) => draw(u, v, false)));
-writeFileSync('public/icons/icon-maskable-512.png', png(512, (u, v) => draw(u, v, true)));
-writeFileSync('public/icons/apple-touch-icon.png', png(180, (u, v) => draw(u, v, true)));
+/** 4x4 のスーパーサンプリングで縁を滑らかにする */
+function aa(size, maskable) {
+  const n = 4;
+  return (u, v) => {
+    const acc = [0, 0, 0, 0];
+    for (let i = 0; i < n; i++) {
+      for (let j = 0; j < n; j++) {
+        const c = draw(u + ((i + 0.5) / n - 0.5) / size, v + ((j + 0.5) / n - 0.5) / size, maskable);
+        for (let k = 0; k < 4; k++) acc[k] += c[k];
+      }
+    }
+    return acc.map((x) => Math.round(x / (n * n)));
+  };
+}
+
+writeFileSync('public/icons/icon-192.png', png(192, aa(192, false)));
+writeFileSync('public/icons/icon-512.png', png(512, aa(512, false)));
+writeFileSync('public/icons/icon-maskable-512.png', png(512, aa(512, true)));
+writeFileSync('public/icons/apple-touch-icon.png', png(180, aa(180, true)));
 
 writeFileSync(
   'public/icons/icon.svg',
   `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
   <defs>
     <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#0ea5c4"/>
-      <stop offset="1" stop-color="#2f9bf0"/>
+      <stop offset="0" stop-color="#3bc46f"/>
+      <stop offset="1" stop-color="#0e7a3a"/>
     </linearGradient>
   </defs>
   <rect width="512" height="512" rx="96" fill="url(#g)"/>
-  <path d="M256 96c-62 0-112 50-112 112 0 84 112 208 112 208s112-124 112-208c0-62-50-112-112-112z" fill="#fff"/>
-  <circle cx="256" cy="208" r="44" fill="url(#g)"/>
+  <!-- 太字の N: 左棒 + 斜め棒 + 右棒 -->
+  <path d="M123 128h72v256h-72zM317 128h72v256h-72zM123 128h88l178 256h-88z" fill="#fff"/>
 </svg>
 `,
 );

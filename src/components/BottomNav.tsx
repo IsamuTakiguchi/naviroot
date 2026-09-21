@@ -12,9 +12,7 @@ export function BottomNav() {
   return (
     <nav className="bottom-nav" aria-label="メインナビゲーション">
       <div className="nav-brand" aria-hidden>
-        <span className="logo">
-          <Icon name="pin" size={20} />
-        </span>
+        <span className="logo">N</span>
         naviroot
       </div>
       {ITEMS.map((it) => (

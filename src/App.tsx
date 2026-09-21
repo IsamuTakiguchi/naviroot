@@ -92,7 +92,12 @@ function Shell() {
         >
           <Icon name={theme.resolved === 'dark' ? 'sun' : 'moon'} size={20} />
         </button>
-        <span className="brand">naviroot</span>
+        <span className="brand">
+          <span className="brand-mark" aria-hidden>
+            N
+          </span>
+          naviroot
+        </span>
       </header>
       {!online && <div className="offline-banner">オフラインです。お気に入り・履歴は閲覧できます。</div>}
       {mapsError && !needsKey && (
