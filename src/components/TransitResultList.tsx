@@ -12,8 +12,13 @@ export function Badges({ badges, showAll }: { badges: PlanBadge[]; showAll?: boo
   if (list.length === 0) return null;
   return (
     <span className="badges">
-      {list.map((b) => (
-        <span key={b} className={`badge ${b} ${badges.includes(b) ? 'on' : 'off'}`} title={BADGE_TITLE[b]}>
+      {list.map((b, i) => (
+        <span
+          key={b}
+          className={`badge ${b} ${badges.includes(b) ? 'on' : 'off'}`}
+          title={BADGE_TITLE[b]}
+          style={{ ['--bi' as string]: i }}
+        >
           {BADGE_LABEL[b]}
         </span>
       ))}
@@ -43,7 +48,7 @@ export function TransitResultList({ plans, selectedId, onSelect }: Props) {
       {plans.map((p, i) => {
         const icons = segmentIcons(p.segments);
         return (
-          <li key={p.id}>
+          <li key={p.id} className="nt-item" style={{ ['--i' as string]: i, ['--row-delay' as string]: `${i * 70}ms` }}>
             <button
               type="button"
               className={`nt-row ${selectedId === p.id ? 'selected' : ''}`}

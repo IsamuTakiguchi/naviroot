@@ -4,6 +4,7 @@ import type { Place, RouteQuery, TimeType, TransitFilter, TransitPlan } from '..
 import { RouteForm } from '../components/RouteForm';
 import { TransitResultList } from '../components/TransitResultList';
 import { TransitDetail } from '../components/TransitDetail';
+import { TransitLoading } from '../components/TransitLoading';
 import { HistoryList } from '../components/HistoryList';
 import { MapView } from '../components/MapView';
 import { ErrorDetail } from '../components/ErrorDetail';
@@ -154,11 +155,7 @@ export function TransitPage() {
         </>
       )}
 
-      {transit.loading && (
-        <div className="loading">
-          <span className="spinner" /> 経路を検索しています…
-        </div>
-      )}
+      {transit.loading && <TransitLoading />}
 
       {!transit.loading && plans.length > 0 && from && to && (
         <>

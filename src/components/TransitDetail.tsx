@@ -71,7 +71,7 @@ export function TransitDetail({
           </button>
         )}
         {onToggleFavorite && (
-          <button type="button" className="btn small" onClick={onToggleFavorite}>
+          <button type="button" className={`btn small ${isFavorite ? 'fav-on' : ''}`} onClick={onToggleFavorite}>
             {isFavorite ? <Icon name="star" size={16} /> : <Icon name="star-outline" size={16} />}
             {isFavorite ? '登録済み' : 'お気に入り'}
           </button>
@@ -88,7 +88,7 @@ export function TransitDetail({
         {rows.map((row, i) => {
           if (row.kind === 'point') {
             return (
-              <div key={i} className={`nt-point ${row.terminal ?? ''}`}>
+              <div key={i} className={`nt-point ${row.terminal ?? ''}`} style={{ ['--i' as string]: i }}>
                 <div className="nt-point-time">
                   {row.arrive && (
                     <div>
@@ -118,7 +118,7 @@ export function TransitDetail({
 
           if (row.kind === 'walk') {
             return (
-              <div key={i} className="nt-move walk">
+              <div key={i} className="nt-move walk" style={{ ['--i' as string]: i }}>
                 <div className="nt-move-icon">
                   <Icon name="walk" size={20} />
                 </div>
@@ -136,7 +136,7 @@ export function TransitDetail({
           const s = row.segment;
           const color = s.lineColor ?? 'var(--accent)';
           return (
-            <div key={i} className="nt-move transit" style={{ ['--seg-color' as string]: color }}>
+            <div key={i} className="nt-move transit" style={{ ['--seg-color' as string]: color, ['--i' as string]: i }}>
               <div className="nt-move-icon">
                 <Icon name={VEHICLE_ICON[s.vehicle]} size={20} />
                 {s.numStops > 0 && <span className="nt-stops">{s.numStops}駅</span>}

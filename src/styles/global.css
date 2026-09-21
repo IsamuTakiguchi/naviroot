@@ -233,6 +233,37 @@ code {
   }
 }
 
+/* 端末で「視差効果を減らす」が有効なときは動きを止める。
+   登場アニメーションを止めても中身が必ず見えるよう、最終状態を明示する。 */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  .nt-item,
+  .nt-point,
+  .nt-move,
+  .badge.on {
+    opacity: 1 !important;
+    transform: none !important;
+  }
+
+  .nt-move-bar {
+    transform: scaleY(1) !important;
+  }
+
+  .badge.on::after,
+  .nt-no::after,
+  .btn.primary::after {
+    display: none;
+  }
+}
+
 /* ---------- アプリ骨格 ---------- */
 .app {
   display: flex;
@@ -409,6 +440,12 @@ code {
 .bottom-nav a .icon {
   width: 24px;
   height: 24px;
+  transition: transform 0.2s ease;
+}
+
+/* 切り替えたタブのアイコンが一度だけ弾む */
+.bottom-nav a.active .icon {
+  animation: pop 0.42s cubic-bezier(0.2, 1.4, 0.4, 1);
 }
 
 .bottom-nav a.active {
@@ -611,16 +648,51 @@ code {
 }
 
 .btn:active {
-  transform: scale(0.98);
+  transform: scale(0.96);
+}
+
+/* お気に入り登録時に星が弾む */
+.btn.fav-on .icon-svg {
+  animation: star-pop 0.5s cubic-bezier(0.2, 1.4, 0.4, 1);
+  color: var(--accent-warm);
 }
 
 .btn.primary {
-  background: linear-gradient(135deg, var(--accent) 0%, var(--accent-2) 100%);
+  position: relative;
+  overflow: hidden;
+  background: linear-gradient(135deg, var(--accent) 0%, var(--accent-2) 50%, var(--accent-3) 140%);
+  background-size: 160% 100%;
   border-color: transparent;
   color: #fff;
   box-shadow:
     0 8px 20px rgba(20, 163, 78, 0.32),
     inset 0 1px 0 rgba(255, 255, 255, 0.5);
+  transition:
+    transform 0.15s ease,
+    box-shadow 0.15s ease,
+    background-position 0.4s ease;
+}
+
+/* 光沢が横切る（押したくなる感じに） */
+.btn.primary:not(:disabled)::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(105deg, transparent 38%, rgba(255, 255, 255, 0.4) 50%, transparent 62%);
+  transform: translateX(-120%);
+  animation: shine 4.5s ease-in-out infinite;
+  animation-delay: 1.2s;
+  pointer-events: none;
+}
+
+@media (hover: hover) {
+  .btn.primary:not(:disabled):hover {
+    background-position: 100% 0;
+    transform: translateY(-1px);
+    box-shadow:
+      0 12px 26px rgba(20, 163, 78, 0.4),
+      inset 0 1px 0 rgba(255, 255, 255, 0.5);
+  }
 }
 
 .btn.primary:disabled {
@@ -690,7 +762,12 @@ code {
   box-shadow: inset 0 1px 0 var(--glass-edge);
   transition:
     background 0.15s ease,
-    color 0.15s ease;
+    color 0.15s ease,
+    transform 0.15s ease;
+}
+
+.chip:active {
+  transform: scale(0.95);
 }
 
 .chip.active {
@@ -698,6 +775,7 @@ code {
   border-color: transparent;
   color: #fff;
   box-shadow: 0 4px 12px rgba(20, 163, 78, 0.3);
+  animation: pop 0.34s cubic-bezier(0.2, 1.4, 0.4, 1);
 }
 
 .segmented {
@@ -834,6 +912,220 @@ select {
   }
 }
 
+/* ---------- 動きのある演出 ---------- */
+
+/* 下から浮き上がって現れる（一覧・タイムライン） */
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* きゅっと弾む（バッジ・タブ・アイコン） */
+@keyframes pop {
+  0% {
+    opacity: 0;
+    transform: scale(0.55);
+  }
+  60% {
+    opacity: 1;
+    transform: scale(1.12);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* 光沢が横切る */
+@keyframes shine {
+  0%,
+  55% {
+    transform: translateX(-120%);
+  }
+  85%,
+  100% {
+    transform: translateX(120%);
+  }
+}
+
+/* 検索中: 線路の上を走る */
+@keyframes train-run {
+  0% {
+    transform: translateX(-12%) scaleX(1);
+  }
+  50% {
+    transform: translateX(240%) scaleX(1);
+  }
+  50.01% {
+    transform: translateX(240%) scaleX(-1);
+  }
+  100% {
+    transform: translateX(-12%) scaleX(-1);
+  }
+}
+
+/* 検索中: 線路が流れる */
+@keyframes track-flow {
+  to {
+    background-position-x: -28px;
+  }
+}
+
+/* 検索中: スケルトンの明滅 */
+@keyframes skeleton-sweep {
+  0% {
+    background-position-x: -140%;
+  }
+  100% {
+    background-position-x: 240%;
+  }
+}
+
+/* 経路の縦棒が上から伸びる */
+@keyframes draw-bar {
+  from {
+    transform: scaleY(0);
+  }
+  to {
+    transform: scaleY(1);
+  }
+}
+
+/* 出発点などの波紋 */
+@keyframes pulse-ring {
+  0% {
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--nt-green) 55%, transparent);
+  }
+  70% {
+    box-shadow: 0 0 0 10px transparent;
+  }
+  100% {
+    box-shadow: 0 0 0 0 transparent;
+  }
+}
+
+/* お気に入り登録時 */
+@keyframes star-pop {
+  0% {
+    transform: scale(1) rotate(0deg);
+  }
+  35% {
+    transform: scale(1.35) rotate(-12deg);
+  }
+  70% {
+    transform: scale(0.92) rotate(8deg);
+  }
+  100% {
+    transform: scale(1) rotate(0deg);
+  }
+}
+
+/* ---------- 検索中（線路 + スケルトン） ---------- */
+.nt-loading {
+  padding: 4px 0 8px;
+}
+
+.nt-track {
+  position: relative;
+  height: 34px;
+  margin: 6px 2px 0;
+}
+
+.nt-track-line {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 4px;
+  height: 4px;
+  border-radius: 2px;
+  background-image: repeating-linear-gradient(
+    90deg,
+    var(--nt-green) 0 14px,
+    transparent 14px 28px
+  );
+  background-size: 28px 100%;
+  opacity: 0.45;
+  animation: track-flow 0.6s linear infinite;
+}
+
+.nt-train {
+  position: absolute;
+  left: 0;
+  bottom: 8px;
+  width: 30px;
+  height: 26px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--accent);
+  animation: train-run 2.6s cubic-bezier(0.45, 0, 0.55, 1) infinite;
+}
+
+.nt-loading-label {
+  text-align: center;
+  color: var(--muted);
+  font-size: 14px;
+  padding: 10px 0 12px;
+}
+
+.nt-row.nt-skeleton {
+  cursor: default;
+  align-items: center;
+  padding: 14px 14px 14px 0;
+}
+
+.nt-skeleton .nt-body {
+  gap: 8px;
+}
+
+.sk-bar,
+.sk-badge,
+.nt-no.sk {
+  background-image: linear-gradient(
+    100deg,
+    var(--field) 30%,
+    color-mix(in srgb, var(--accent) 22%, var(--field)) 50%,
+    var(--field) 70%
+  );
+  background-size: 260% 100%;
+  animation: skeleton-sweep 1.4s ease-in-out infinite;
+}
+
+.sk-bar {
+  display: block;
+  height: 12px;
+  border-radius: 6px;
+}
+
+.sk-bar.w-60 {
+  width: 60%;
+  height: 16px;
+}
+
+.sk-bar.w-40 {
+  width: 40%;
+}
+
+.sk-bar.w-30 {
+  width: 30%;
+}
+
+.sk-badge {
+  width: 24px;
+  height: 24px;
+  border-radius: 7px;
+}
+
+.nt-no.sk {
+  background-color: var(--field);
+}
+
 /* ---------- 乗換案内 一覧（NAVITIME 風） ---------- */
 .nt-list {
   list-style: none;
@@ -842,6 +1134,12 @@ select {
   display: flex;
   flex-direction: column;
   gap: 10px;
+}
+
+/* 候補が下から順に滑り込む。.nt-row は backdrop-filter を持つので transform は li 側に置く */
+.nt-item {
+  animation: rise 0.45s cubic-bezier(0.2, 0.8, 0.25, 1) both;
+  animation-delay: var(--row-delay, 0ms);
 }
 
 .nt-row {
@@ -869,20 +1167,37 @@ select {
     border-color 0.15s ease;
 }
 
+.nt-row:active {
+  transform: scale(0.985);
+}
+
 .nt-row.selected {
   border-color: var(--nt-green);
   background: var(--nt-green-soft);
 }
 
 .nt-no {
+  position: relative;
+  overflow: hidden;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: var(--nt-green);
+  background: linear-gradient(160deg, var(--nt-green), var(--nt-green-dark));
   color: #fff;
   font-weight: 800;
   font-size: 15px;
   align-self: stretch;
+}
+
+/* 番号タブを光沢がゆっくり横切る */
+.nt-no::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(105deg, transparent 35%, rgba(255, 255, 255, 0.55) 50%, transparent 65%);
+  transform: translateX(-120%);
+  animation: shine 3.6s ease-in-out infinite;
+  animation-delay: calc(var(--row-delay, 0ms) + 500ms);
 }
 
 .nt-row.selected .nt-no {
@@ -986,6 +1301,8 @@ select {
 }
 
 .badge {
+  position: relative;
+  overflow: hidden;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -997,6 +1314,47 @@ select {
   font-weight: 800;
   background: var(--nt-green);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.3);
+}
+
+/* 獲得したバッジは種別ごとに色分けする（早=赤 / 安=緑 / 楽=青） */
+.badge.on {
+  animation: pop 0.5s cubic-bezier(0.2, 1.4, 0.4, 1) both;
+  animation-delay: calc(var(--row-delay, 0ms) + 140ms + var(--bi, 0) * 80ms);
+}
+
+.badge.fastest.on {
+  background: var(--badge-fastest);
+  background: linear-gradient(140deg, color-mix(in srgb, var(--badge-fastest) 82%, #fff), var(--badge-fastest));
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.35),
+    0 2px 7px color-mix(in srgb, var(--badge-fastest) 45%, transparent);
+}
+
+.badge.cheapest.on {
+  background: var(--badge-cheapest);
+  background: linear-gradient(140deg, color-mix(in srgb, var(--badge-cheapest) 82%, #fff), var(--badge-cheapest));
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.35),
+    0 2px 7px color-mix(in srgb, var(--badge-cheapest) 45%, transparent);
+}
+
+.badge.easiest.on {
+  background: var(--badge-easiest);
+  background: linear-gradient(140deg, color-mix(in srgb, var(--badge-easiest) 82%, #fff), var(--badge-easiest));
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.35),
+    0 2px 7px color-mix(in srgb, var(--badge-easiest) 45%, transparent);
+}
+
+/* 光沢がゆっくり横切る */
+.badge.on::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(105deg, transparent 35%, rgba(255, 255, 255, 0.75) 50%, transparent 65%);
+  transform: translateX(-120%);
+  animation: shine 3.2s ease-in-out infinite;
+  animation-delay: calc(var(--row-delay, 0ms) + 700ms + var(--bi, 0) * 160ms);
 }
 
 .badge.off {
@@ -1025,6 +1383,7 @@ select {
 }
 
 .nt-tab {
+  position: relative;
   flex: 0 0 auto;
   border: 0;
   border-right: 1px solid var(--line);
@@ -1034,11 +1393,35 @@ select {
   font-weight: 700;
   color: var(--muted);
   cursor: pointer;
+  transition:
+    background 0.2s ease,
+    color 0.2s ease;
 }
 
 .nt-tab.active {
   background: var(--nt-green);
   color: #fff;
+}
+
+/* 選択したタブの下線が伸びる */
+.nt-tab.active::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 3px;
+  background: var(--accent-3);
+  animation: tab-underline 0.32s cubic-bezier(0.2, 0.8, 0.25, 1) both;
+}
+
+@keyframes tab-underline {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
 }
 
 .nt-detail-head {
@@ -1087,6 +1470,8 @@ select {
   gap: 0 10px;
   align-items: center;
   padding: 6px 0;
+  animation: rise 0.38s cubic-bezier(0.2, 0.8, 0.25, 1) both;
+  animation-delay: calc(var(--i, 0) * 45ms);
 }
 
 .nt-point-time {
@@ -1122,6 +1507,8 @@ select {
 .nt-point.start .nt-point-dot span {
   border-color: var(--nt-green);
   background: var(--nt-green);
+  animation: pulse-ring 1.8s ease-out 3;
+  animation-delay: 0.4s;
 }
 
 .nt-point.goal .nt-point-dot span {
@@ -1162,6 +1549,8 @@ select {
   grid-template-columns: 62px 18px minmax(0, 1fr);
   gap: 0 10px;
   align-items: stretch;
+  animation: rise 0.38s cubic-bezier(0.2, 0.8, 0.25, 1) both;
+  animation-delay: calc(var(--i, 0) * 45ms);
 }
 
 .nt-move-icon {
@@ -1190,6 +1579,9 @@ select {
   border-radius: 4px;
   background: var(--seg-color, var(--accent));
   min-height: 52px;
+  transform-origin: top center;
+  animation: draw-bar 0.4s cubic-bezier(0.2, 0.8, 0.25, 1) both;
+  animation-delay: calc(var(--i, 0) * 45ms + 60ms);
 }
 
 .nt-move.walk .nt-move-bar {
@@ -1677,6 +2069,20 @@ select {
 
 /* ---------- 印刷 ---------- */
 @media print {
+  /* 印刷時はアニメーション途中の状態で固まらないようにする */
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+    transition: none !important;
+    opacity: 1 !important;
+    transform: none !important;
+  }
+
+  .nt-move-bar {
+    transform: scaleY(1) !important;
+  }
+
   body::before,
   .app-header,
   .bottom-nav,
