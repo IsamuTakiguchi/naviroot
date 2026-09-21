@@ -29,6 +29,8 @@ export type IconName =
   | 'edit'
   | 'flag'
   | 'close'
+  | 'print'
+  | 'calendar'
   | 'route';
 
 interface Def {
@@ -196,6 +198,17 @@ const ICONS: Record<IconName, Def> = {
   },
   close: {
     stroke: <path d="M6 6l12 12M18 6 6 18" />,
+  },
+  print: {
+    stroke: <path d="M7 9V3.5h10V9M7 18H4.5V9.5h15V18H17M7 14.5h10V21H7z" />,
+  },
+  calendar: {
+    stroke: (
+      <>
+        <rect x="3.5" y="5" width="17" height="15.5" rx="2.5" />
+        <path d="M3.5 10h17M8 3v4M16 3v4" />
+      </>
+    ),
   },
   // 経路（点線で結ばれた 2 点）
   route: {

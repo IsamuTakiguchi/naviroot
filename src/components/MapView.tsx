@@ -11,6 +11,9 @@ export interface MapViewProps {
   bounds?: google.maps.LatLngBounds;
   origin?: LatLng;
   destination?: LatLng;
+  /** マーカーのラベル（既定は 発 / 着） */
+  originLabel?: string;
+  destinationLabel?: string;
   spot?: LatLng;
   spotTitle?: string;
   currentLocation?: LatLng;
@@ -74,7 +77,21 @@ const BLUE_DOT: google.maps.Symbol = {
 };
 
 export function MapView(props: MapViewProps) {
-  const { center, zoom, path, pathColor, bounds, origin, destination, spot, spotTitle, currentLocation, onClick } = props;
+  const {
+    center,
+    zoom,
+    path,
+    pathColor,
+    bounds,
+    origin,
+    destination,
+    originLabel = '発',
+    destinationLabel = '着',
+    spot,
+    spotTitle,
+    currentLocation,
+    onClick,
+  } = props;
   return (
     <div className="map-wrap">
       <Map
@@ -94,9 +111,15 @@ export function MapView(props: MapViewProps) {
         <RoutePolyline path={path} color={pathColor} />
         <FitBounds bounds={bounds} />
         <PanTo center={center} zoom={zoom} />
-        {origin && <Marker position={origin} label={{ text: 'S', color: '#fff', fontWeight: '700' }} title="出発地" />}
+        {origin && (
+          <Marker position={origin} label={{ text: originLabel, color: '#fff', fontWeight: '700', fontSize: '12px' }} title="出発地" />
+        )}
         {destination && (
-          <Marker position={destination} label={{ text: 'G', color: '#fff', fontWeight: '700' }} title="目的地" />
+          <Marker
+            position={destination}
+            label={{ text: destinationLabel, color: '#fff', fontWeight: '700', fontSize: '12px' }}
+            title="目的地"
+          />
         )}
         {spot && <Marker position={spot} title={spotTitle} />}
         {currentLocation && <Marker position={currentLocation} icon={BLUE_DOT} title="現在地" zIndex={10} />}

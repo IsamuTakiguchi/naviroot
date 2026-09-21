@@ -99,8 +99,12 @@ export function TransitPage() {
   const isFav = from && to ? favorites.hasRoute(from, to, 'TRANSIT') : false;
   const showExternal = !!(from && to) && !!transit.error;
 
+  const mapPlan = selected ?? plans[0];
+
   return (
-    <div className={`page ${selected ? 'wide' : ''}`}>
+    <div className="page transit-page">
+      <div className="transit-layout">
+      <div className="transit-main">
       <RouteForm
         from={from}
         to={to}
@@ -168,12 +172,45 @@ export function TransitPage() {
                 （{formatTime(plans[0].departureTime)}〜{formatTime(plans[plans.length - 1].departureTime)} 発）
               </>
             )}
-            <span style={{ fontWeight: 400, marginLeft: 6, fontSize: 11 }}>
-              API 応答 {transit.firstBatch} 件 × {transit.apiCalls} 回
-            </span>
           </div>
-          <div className={`results ${selected ? 'has-selected' : ''}`}>
-            <div className="results-list">
+
+          {selected ? (
+            <>
+              <button type="button" className="btn small ghost" onClick={() => setSelected(undefined)}>
+                <Icon name="chevron-left" size={16} /> ルート一覧に戻る
+              </button>
+              {showMap && (
+                <div className="card nt-inline-map">
+                  <MapView
+                    path={selected.overviewPath}
+                    bounds={selected.bounds}
+                    origin={from.location}
+                    destination={to.location}
+                  />
+                </div>
+              )}
+              <TransitDetail
+                plan={selected}
+                plans={plans}
+                onSelectPlan={setSelected}
+                fromName={from.name}
+                toName={to.name}
+                isFavorite={isFav}
+                onToggleFavorite={() => {
+                  if (isFav) favorites.removeRoute(from, to, 'TRANSIT');
+                  else favorites.addRoute(from, to, 'TRANSIT');
+                }}
+                onShowMap={() => setShowMap((v) => !v)}
+                onOpenTimetable={(fromStop, toStop) =>
+                  navigate({
+                    pathname: '/timetable',
+                    search: queryToParams({ from: { name: fromStop }, to: { name: toStop }, mode: 'TRANSIT', timeType: 'departure' }).toString(),
+                  })
+                }
+              />
+            </>
+          ) : (
+            <>
               {timeType !== 'first' && (
                 <button
                   type="button"
@@ -185,7 +222,7 @@ export function TransitPage() {
                   <Icon name="chevron-left" size={16} /> {transit.sliding === 'prev' ? '前の便を探しています…' : '1本前'}
                 </button>
               )}
-              <TransitResultList plans={plans} selectedId={selected?.id} onSelect={openMap} />
+              <TransitResultList plans={plans} onSelect={openMap} />
               {timeType !== 'last' && (
                 <button
                   type="button"
@@ -216,40 +253,13 @@ export function TransitPage() {
                 </button>
               )}
               {transit.moreError && <div className="alert warn">{transit.moreError}</div>}
-              <p style={{ fontSize: 11, color: 'var(--color-text-muted)', margin: '8px 2px 0' }}>
-                今月の NAVITIME API 利用: {readNavitimeUsage().count} / {NAVITIME_FREE_LIMIT} 回（この端末）
-              </p>
-            </div>
-            {selected && (
-              <div className="results-detail">
-                <button type="button" className="btn small ghost mobile-only" onClick={() => setSelected(undefined)}>
-                  <Icon name="chevron-left" size={16} /> 一覧に戻る
-                </button>
-                {showMap && (
-                  <div className="card" style={{ padding: 0, overflow: 'hidden', height: 280 }}>
-                    <MapView
-                      path={selected.overviewPath}
-                      bounds={selected.bounds}
-                      origin={from.location}
-                      destination={to.location}
-                    />
-                  </div>
-                )}
-                <TransitDetail
-                  plan={selected}
-                  fromName={from.name}
-                  toName={to.name}
-                  isFavorite={isFav}
-                  onToggleFavorite={() => {
-                    if (isFav) favorites.removeRoute(from, to, 'TRANSIT');
-                    else favorites.addRoute(from, to, 'TRANSIT');
-                  }}
-                  onShowMap={() => setShowMap((v) => !v)}
-                />
-              </div>
-            )}
-          </div>
-          <p style={{ fontSize: 12, color: 'var(--color-text-muted)' }}>乗換データ: NAVITIME API</p>
+            </>
+          )}
+
+          <p className="nt-foot">
+            乗換データ: NAVITIME API ・ API 応答 {transit.firstBatch} 件 × {transit.apiCalls} 回 ・ 今月の利用{' '}
+            {readNavitimeUsage().count} / {NAVITIME_FREE_LIMIT} 回
+          </p>
         </>
       )}
 
@@ -309,6 +319,18 @@ export function TransitPage() {
           )}
         </>
       )}
+      </div>
+      {plans.length > 0 && from && to && (
+        <div className="transit-map">
+          <MapView
+            path={mapPlan?.overviewPath}
+            bounds={mapPlan?.bounds}
+            origin={from.location}
+            destination={to.location}
+          />
+        </div>
+      )}
+      </div>
     </div>
   );
 }

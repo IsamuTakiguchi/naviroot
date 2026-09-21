@@ -32,6 +32,9 @@
   --field-border: rgba(16, 21, 40, 0.08);
 
   --walk: #8a8f98;
+  --nt-green: #1f7a41;
+  --nt-green-dark: #17592f;
+  --nt-green-soft: rgba(31, 122, 65, 0.12);
   --badge-fastest: #ff3b30;
   --badge-cheapest: #34c759;
   --badge-easiest: #0a84ff;
@@ -87,6 +90,9 @@
     --walk: #9aa0a6;
     --badge-easiest: #409cff;
     --badge-cheapest: #30d158;
+    --nt-green: #34c06a;
+    --nt-green-dark: #2aa259;
+    --nt-green-soft: rgba(52, 192, 106, 0.18);
     --badge-fastest: #ff453a;
     --color-primary-dark: #79b6ff;
     --color-primary-soft: rgba(64, 156, 255, 0.22);
@@ -172,7 +178,7 @@ code {
 .app-header,
 .bottom-nav,
 .suggestions,
-.plan-card,
+.nt-row,
 .map-fab,
 .map-page .panel,
 .alert {
@@ -191,7 +197,7 @@ code {
   .app-header,
   .bottom-nav,
   .suggestions,
-  .plan-card,
+  .nt-row,
   .map-fab,
   .map-page .panel,
   .alert {
@@ -205,7 +211,7 @@ code {
   .app-header,
   .bottom-nav,
   .suggestions,
-  .plan-card,
+  .nt-row,
   .map-fab,
   .map-page .panel,
   .alert {
@@ -746,218 +752,376 @@ select {
   }
 }
 
-/* ---------- 乗換案内 一覧 ---------- */
-.results {
-  display: block;
-}
-
-.results.has-selected .results-list {
-  display: none;
-}
-
-.plan-list {
+/* ---------- 乗換案内 一覧（NAVITIME 風） ---------- */
+.nt-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 10px;
 }
 
-.plan-card {
-  display: block;
+.nt-row {
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr) auto;
+  align-items: stretch;
+  gap: 12px;
   width: 100%;
   text-align: left;
-  border-radius: var(--radius-lg);
-  padding: 14px 16px;
+  padding: 0 14px 0 0;
   cursor: pointer;
   color: var(--text);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  background: var(--glass);
+  -webkit-backdrop-filter: blur(28px) saturate(180%);
+  backdrop-filter: blur(28px) saturate(180%);
+  border: 1px solid var(--glass-border);
+  box-shadow:
+    var(--glass-shadow-sm),
+    inset 0 1px 0 var(--glass-edge);
   transition:
     transform 0.15s ease,
     box-shadow 0.15s ease,
     border-color 0.15s ease;
 }
 
-.plan-card.selected {
-  border-color: var(--accent);
-  box-shadow:
-    0 0 0 3px rgba(10, 132, 255, 0.18),
-    var(--glass-shadow-sm);
+.nt-row.selected {
+  border-color: var(--nt-green);
+  background: var(--nt-green-soft);
 }
 
-.plan-head {
+.nt-no {
   display: flex;
-  align-items: baseline;
-  gap: 8px;
-  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  background: var(--nt-green);
+  color: #fff;
+  font-weight: 800;
+  font-size: 15px;
+  align-self: stretch;
 }
 
-.plan-times {
-  font-size: 19px;
+.nt-row.selected .nt-no {
+  background: var(--nt-green-dark);
+}
+
+.nt-body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 12px 0;
+  min-width: 0;
+}
+
+.nt-times {
+  font-size: 20px;
   font-weight: 800;
   letter-spacing: 0.01em;
+  font-variant-numeric: tabular-nums;
 }
 
-.plan-duration {
+.nt-times .arrow {
   color: var(--muted);
-  font-size: 13px;
+  font-weight: 600;
+  margin: 0 2px;
 }
 
-.plan-meta {
+.nt-dur {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.nt-meta {
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.nt-icons {
   display: flex;
-  gap: 12px;
-  font-size: 13px;
-  color: var(--muted);
-  margin-top: 4px;
+  align-items: center;
   flex-wrap: wrap;
+  gap: 2px;
+  margin-top: 4px;
+  color: var(--muted);
 }
 
-.plan-meta strong {
-  color: var(--text);
+.nt-icon {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
 }
 
+.nt-icon .sep {
+  display: inline-block;
+  width: 10px;
+  height: 2px;
+  border-radius: 1px;
+  background: var(--line);
+  margin-right: 2px;
+}
+
+.nt-foot {
+  font-size: 11px;
+  color: var(--muted);
+  margin: 10px 2px 0;
+}
+
+.nt-inline-map {
+  padding: 0;
+  overflow: hidden;
+  height: 280px;
+}
+
+/* 「早」「安」「楽」 */
 .badges {
   display: inline-flex;
   gap: 4px;
+  align-self: center;
+  flex-shrink: 0;
 }
 
 .badge {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 22px;
-  height: 22px;
+  width: 24px;
+  height: 24px;
   border-radius: 7px;
   color: #fff;
   font-size: 12px;
   font-weight: 800;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.35);
+  background: var(--nt-green);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.3);
 }
 
-.badge.fastest {
-  background: var(--badge-fastest);
-}
-
-.badge.cheapest {
-  background: var(--badge-cheapest);
-}
-
-.badge.easiest {
-  background: var(--badge-easiest);
-}
-
-.plan-lines {
-  display: flex;
-  gap: 6px;
-  flex-wrap: wrap;
-  margin-top: 8px;
-}
-
-.line-pill {
-  font-size: 12px;
-  font-weight: 600;
-  padding: 3px 10px;
-  border-radius: 999px;
-  background: var(--field);
-  border: 1px solid var(--field-border);
-  border-left: 4px solid var(--accent);
-  max-width: 100%;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.line-pill.walk {
-  border-left-color: var(--walk);
+.badge.off {
+  background: transparent;
   color: var(--muted);
+  border: 1px solid var(--line);
+  box-shadow: none;
 }
 
-/* ---------- 乗換案内 詳細タイムライン ---------- */
-.timeline {
-  position: relative;
-  padding-left: 0;
-  list-style: none;
-  margin: 0;
+/* ---------- 乗換案内 詳細（NAVITIME 風） ---------- */
+.nt-detail {
+  padding: 0;
+  overflow: hidden;
 }
 
-.tl-stop {
-  display: grid;
-  grid-template-columns: 52px 20px 1fr;
-  gap: 0 10px;
-  align-items: center;
-  min-height: 36px;
+.nt-tabs {
+  display: flex;
+  overflow-x: auto;
+  scrollbar-width: none;
+  border-bottom: 1px solid var(--line);
+  background: var(--glass-soft);
 }
 
-.tl-stop .time {
+.nt-tabs::-webkit-scrollbar {
+  display: none;
+}
+
+.nt-tab {
+  flex: 0 0 auto;
+  border: 0;
+  border-right: 1px solid var(--line);
+  background: transparent;
+  padding: 11px 18px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.nt-tab.active {
+  background: var(--nt-green);
+  color: #fff;
+}
+
+.nt-detail-head {
+  padding: 14px 16px 10px;
+}
+
+.nt-detail-times {
+  font-size: 24px;
   font-weight: 800;
-  font-size: 14px;
-  text-align: right;
   font-variant-numeric: tabular-nums;
 }
 
-.tl-stop .marker {
-  width: 14px;
-  height: 14px;
-  border-radius: 50%;
-  border: 3px solid var(--accent);
-  background: #fff;
-  justify-self: center;
+.nt-detail-times .arrow {
+  color: var(--muted);
+  margin: 0 4px;
 }
 
-.tl-stop .name {
+.nt-detail-meta {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  font-size: 14px;
+  color: var(--muted);
+  margin-top: 4px;
+}
+
+.nt-detail-meta .fare {
+  font-weight: 800;
+  color: var(--text);
+}
+
+.nt-actions {
+  padding: 0 16px 12px;
+  border-bottom: 1px solid var(--line);
+}
+
+.nt-timeline {
+  padding: 4px 16px 16px;
+}
+
+/* 地点行: 時刻 / 丸 / 名前 */
+.nt-point {
+  display: grid;
+  grid-template-columns: 62px 18px minmax(0, 1fr);
+  gap: 0 10px;
+  align-items: center;
+  padding: 6px 0;
+}
+
+.nt-point-time {
+  text-align: right;
+  font-size: 13px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+  line-height: 1.35;
+}
+
+.nt-point-time .t {
+  font-weight: 800;
+  color: var(--text);
+  font-size: 14px;
+}
+
+.nt-point-dot {
+  justify-self: center;
+  align-self: stretch;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.nt-point-dot span {
+  width: 13px;
+  height: 13px;
+  border-radius: 50%;
+  border: 3px solid var(--accent);
+  background: var(--color-surface);
+}
+
+.nt-point.start .nt-point-dot span {
+  border-color: var(--nt-green);
+  background: var(--nt-green);
+}
+
+.nt-point.goal .nt-point-dot span {
+  border-color: var(--accent-warm);
+  background: var(--accent-warm);
+}
+
+.nt-point-name {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  min-width: 0;
+}
+
+.nt-point-name .name {
   font-weight: 800;
   font-size: 15px;
 }
 
-.tl-seg {
+.nt-tt {
+  border: 1px solid var(--line);
+  background: var(--field);
+  color: var(--muted);
+  border-radius: 999px;
+  padding: 2px 9px;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+}
+
+/* 移動ブロック: アイコン / 縦バー / 内容 */
+.nt-move {
   display: grid;
-  grid-template-columns: 52px 20px 1fr;
+  grid-template-columns: 62px 18px minmax(0, 1fr);
   gap: 0 10px;
+  align-items: stretch;
 }
 
-.tl-seg .bar {
+.nt-move-icon {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.nt-move.transit .nt-move-icon {
+  color: var(--seg-color, var(--accent));
+}
+
+.nt-stops {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--muted);
+}
+
+.nt-move-bar {
   justify-self: center;
-  width: 6px;
+  width: 7px;
+  border-radius: 4px;
   background: var(--seg-color, var(--accent));
-  border-radius: 3px;
-  min-height: 44px;
+  min-height: 52px;
 }
 
-.tl-seg.walk .bar {
+.nt-move.walk .nt-move-bar {
   width: 0;
-  border-left: 3px dotted var(--walk);
   background: transparent;
+  border-left: 4px dotted var(--walk);
   border-radius: 0;
 }
 
-.tl-seg .body {
-  padding: 8px 0 12px;
-  font-size: 14px;
+.nt-move-body {
+  padding: 12px 0 12px 2px;
+  min-width: 0;
 }
 
-.tl-seg .line-name {
-  display: inline-block;
-  padding: 3px 10px;
-  border-radius: 999px;
+.nt-move-title {
   font-weight: 800;
-  color: #fff;
-  background: var(--seg-color, var(--accent));
-  margin-bottom: 4px;
-  max-width: 100%;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.3);
+  font-size: 14px;
+  color: var(--seg-color, var(--text));
 }
 
-.tl-seg .sub {
+.nt-move.walk .nt-move-title {
+  color: var(--muted);
+}
+
+.nt-move-title .head {
+  font-weight: 600;
   color: var(--muted);
   font-size: 13px;
 }
 
-.tl-seg.walk .body {
-  color: var(--muted);
-}
-
-.tl-seg .dur {
-  color: var(--muted);
+.nt-move-sub {
   font-size: 12px;
-  text-align: right;
-  padding-top: 8px;
+  color: var(--muted);
+  margin-top: 2px;
 }
 
 /* ---------- 地図 ---------- */
@@ -1192,7 +1356,7 @@ select {
    タブレット / PC
    ========================================================= */
 @media (hover: hover) {
-  .plan-card:hover {
+  .nt-row:hover {
     transform: translateY(-2px);
     box-shadow:
       var(--glass-shadow),
@@ -1354,21 +1518,86 @@ select {
   }
 }
 
+.transit-map {
+  display: none;
+}
+
 @media (min-width: 1100px) {
-  .results.has-selected {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr);
-    gap: 16px;
-    align-items: start;
+  .page.transit-page {
+    max-width: none;
+    padding: 0;
   }
 
-  .results.has-selected .results-list {
+  .transit-layout {
+    display: grid;
+    grid-template-columns: 560px minmax(0, 1fr);
+    align-items: start;
+    height: calc(100vh - 62px);
+  }
+
+  .transit-main {
+    height: 100%;
+    overflow-y: auto;
+    padding: 18px 20px 28px;
+    border-right: 1px solid var(--glass-border);
+  }
+
+  .transit-map {
     display: block;
     position: sticky;
-    top: 12px;
+    top: 0;
+    height: 100%;
   }
 
-  .page.wide {
-    max-width: 1200px;
+  .nt-inline-map {
+    display: none;
+  }
+}
+
+/* ---------- 印刷 ---------- */
+@media print {
+  body::before,
+  .app-header,
+  .bottom-nav,
+  .offline-banner,
+  .transit-map,
+  .nt-tabs,
+  .nt-actions,
+  .chips,
+  .alert,
+  .section-title,
+  .nt-foot,
+  form.card {
+    display: none !important;
+  }
+
+  body {
+    background: #fff;
+  }
+
+  .app-main {
+    overflow: visible;
+    padding: 0;
+  }
+
+  .transit-layout {
+    display: block;
+    height: auto;
+  }
+
+  .transit-main {
+    height: auto;
+    overflow: visible;
+    border: 0;
+    padding: 0;
+  }
+
+  .card,
+  .nt-detail {
+    background: #fff !important;
+    box-shadow: none !important;
+    border: 1px solid #ccc !important;
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
   }
 }

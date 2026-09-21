@@ -1,20 +1,34 @@
-import type { TransitPlan, PlanBadge } from '../types';
+import type { TransitPlan, PlanBadge, PlanSegment } from '../types';
 import { formatDuration, formatFare, formatTime, VEHICLE_ICON } from '../lib/format';
-import { Icon } from './Icon';
+import { Icon, type IconName } from './Icon';
 
 const BADGE_LABEL: Record<PlanBadge, string> = { fastest: '早', cheapest: '安', easiest: '楽' };
+const BADGE_TITLE: Record<PlanBadge, string> = { fastest: '最短時間', cheapest: '最安', easiest: '乗換最少' };
+const ALL_BADGES: PlanBadge[] = ['fastest', 'cheapest', 'easiest'];
 
-export function Badges({ badges }: { badges: PlanBadge[] }) {
-  if (badges.length === 0) return null;
+/** 「早」「安」「楽」。showAll では 3 つ並べ、該当するものだけ色を付ける（NAVITIME 風） */
+export function Badges({ badges, showAll }: { badges: PlanBadge[]; showAll?: boolean }) {
+  const list = showAll ? ALL_BADGES : badges;
+  if (list.length === 0) return null;
   return (
     <span className="badges">
-      {badges.map((b) => (
-        <span key={b} className={`badge ${b}`} title={{ fastest: '最短時間', cheapest: '最安', easiest: '乗換最少' }[b]}>
+      {list.map((b) => (
+        <span key={b} className={`badge ${b} ${badges.includes(b) ? 'on' : 'off'}`} title={BADGE_TITLE[b]}>
           {BADGE_LABEL[b]}
         </span>
       ))}
     </span>
   );
+}
+
+/** 区間から乗り物アイコンの並びを作る（連続する同じ手段はまとめる） */
+export function segmentIcons(segments: PlanSegment[]): IconName[] {
+  const out: IconName[] = [];
+  for (const s of segments) {
+    const name: IconName = s.kind === 'walk' ? 'walk' : VEHICLE_ICON[s.vehicle];
+    if (out[out.length - 1] !== name) out.push(name);
+  }
+  return out;
 }
 
 interface Props {
@@ -25,46 +39,40 @@ interface Props {
 
 export function TransitResultList({ plans, selectedId, onSelect }: Props) {
   return (
-    <div className="plan-list">
-      {plans.map((p, i) => (
-        <button
-          key={p.id}
-          type="button"
-          className={`plan-card ${selectedId === p.id ? 'selected' : ''}`}
-          onClick={() => onSelect(p)}
-        >
-          <div className="plan-head">
-            <span style={{ color: 'var(--color-text-muted)', fontSize: 13 }}>{i + 1}</span>
-            <Badges badges={p.badges} />
-            <span className="plan-times">
-              {formatTime(p.departureTime)} → {formatTime(p.arrivalTime)}
-            </span>
-            <span className="plan-duration">({formatDuration(p.durationSec)})</span>
-          </div>
-          <div className="plan-meta">
-            <span>
-              運賃 <strong>{p.fare ? formatFare(p.fare.value, p.fare.currency) : '—'}</strong>
-            </span>
-            <span>
-              乗換 <strong>{p.transfers}回</strong>
-            </span>
-            {p.walkSec > 0 && <span>徒歩 {formatDuration(p.walkSec)}</span>}
-          </div>
-          <div className="plan-lines">
-            {p.segments.map((s, j) =>
-              s.kind === 'walk' ? (
-                <span key={j} className="line-pill walk">
-                  <Icon name="walk" size={13} /> {formatDuration(s.durationSec)}
+    <ol className="nt-list">
+      {plans.map((p, i) => {
+        const icons = segmentIcons(p.segments);
+        return (
+          <li key={p.id}>
+            <button
+              type="button"
+              className={`nt-row ${selectedId === p.id ? 'selected' : ''}`}
+              onClick={() => onSelect(p)}
+              aria-current={selectedId === p.id}
+            >
+              <span className="nt-no">{i + 1}</span>
+              <span className="nt-body">
+                <span className="nt-times">
+                  {formatTime(p.departureTime)} <span className="arrow">→</span> {formatTime(p.arrivalTime)}
+                  <span className="nt-dur">（{formatDuration(p.durationSec)}）</span>
                 </span>
-              ) : (
-                <span key={j} className="line-pill" style={{ borderLeftColor: s.lineColor ?? undefined }}>
-                  <Icon name={VEHICLE_ICON[s.vehicle]} size={13} /> {s.lineShortName ?? s.lineName}
+                <span className="nt-meta">
+                  乗換{p.transfers}回{p.fare && <> 　{formatFare(p.fare.value, p.fare.currency)}</>}
                 </span>
-              ),
-            )}
-          </div>
-        </button>
-      ))}
-    </div>
+                <span className="nt-icons">
+                  {icons.map((ic, j) => (
+                    <span key={j} className="nt-icon">
+                      {j > 0 && <span className="sep" aria-hidden />}
+                      <Icon name={ic} size={17} />
+                    </span>
+                  ))}
+                </span>
+              </span>
+              <Badges badges={p.badges} showAll />
+            </button>
+          </li>
+        );
+      })}
+    </ol>
   );
 }
