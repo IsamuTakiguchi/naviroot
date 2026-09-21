@@ -28,7 +28,7 @@ function RoutePolyline({ path, color }: { path?: google.maps.LatLng[] | LatLng[]
     const line = new google.maps.Polyline({
       path,
       map,
-      strokeColor: color ?? '#0b57d0',
+      strokeColor: color ?? '#0ea5c4',
       strokeOpacity: 0.9,
       strokeWeight: 6,
     });
@@ -70,7 +70,7 @@ function PanTo({ center, zoom }: { center?: LatLng; zoom?: number }) {
 const BLUE_DOT: google.maps.Symbol = {
   path: 0 as unknown as google.maps.SymbolPath, // CIRCLE
   scale: 8,
-  fillColor: '#1a73e8',
+  fillColor: '#0ea5c4',
   fillOpacity: 1,
   strokeColor: '#ffffff',
   strokeWeight: 3,

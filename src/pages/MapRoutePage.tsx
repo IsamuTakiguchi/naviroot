@@ -17,10 +17,10 @@ import { Icon } from '../components/Icon';
 
 const MODES: TravelMode[] = ['WALKING', 'DRIVING', 'BICYCLING'];
 const MODE_COLOR: Record<TravelMode, string> = {
-  WALKING: '#188038',
-  DRIVING: '#0b57d0',
-  BICYCLING: '#f2662e',
-  TRANSIT: '#0b57d0',
+  WALKING: '#17a673',
+  DRIVING: '#2f9bf0',
+  BICYCLING: '#ff7a59',
+  TRANSIT: '#0ea5c4',
 };
 
 export function MapRoutePage() {
