@@ -19,7 +19,7 @@ NAVITIME 風の経路検索アプリです。地図・徒歩／車ルート・�
      2. [Settings → Pages](https://github.com/IsamuTakiguchi/naviroot/settings/pages) の Build and deployment → **Source を「GitHub Actions」** にする
      3. [Actions タブ](https://github.com/IsamuTakiguchi/naviroot/actions) で最新の実行を開き **Re-run jobs**（または何か push する）
    - 以後は push のたびに自動で公開されます。
-2. **API キーを貼り付ける**: 初回起動時の画面の手順（約 5 分）に沿って Google Maps API キーを取得し、入力欄に貼り付けて「保存して開始」を押します。キーはその端末のブラウザにだけ保存されます。
+2. **API キーを設定する**: 初回起動時の画面の手順（約 5 分）に沿って Google Maps API キーを取得し、入力欄に貼り付けて「保存して開始」を押します。キーはその端末のブラウザにだけ保存されるため、**更新後も消えないようにするには下の「API キーを GitHub に登録して組み込む」も行ってください**。
 3. **ホーム画面に追加**: iPhone は共有ボタン →「ホーム画面に追加」、Android はブラウザメニュー →「アプリをインストール」。
 
 ## API キーの取得手順
@@ -33,6 +33,16 @@ NAVITIME 風の経路検索アプリです。地図・徒歩／車ルート・�
 4. （推奨）キーの「アプリケーションの制限」を「ウェブサイト」にし、`https://isamutakiguchi.github.io/*` のみ許可する。「API の制限」を付ける場合は上の 3 つ（＋Geocoding API）を許可する
 
 キーの変更・削除は、アプリの「マイページ → 設定 → Google Maps API キー」から行えます。
+
+## API キーを GitHub に登録して組み込む（推奨）
+
+アプリ内で貼り付けたキーは端末のブラウザ（ホーム画面アプリは専用の保存領域）にだけ保存されるため、**ホーム画面のアプリを削除して追加し直したときや、iOS の容量整理で消える**ことがあります。GitHub リポジトリの Secrets に登録しておくと、GitHub Actions がビルド時にアプリへ組み込むので、更新・再インストール後も入力し直す必要がありません。
+
+1. [Settings → Secrets and variables → Actions](https://github.com/IsamuTakiguchi/naviroot/settings/secrets/actions) →「New repository secret」
+2. `VITE_GOOGLE_MAPS_API_KEY` = Google Maps の API キー、`VITE_NAVITIME_API_KEY` = NAVITIME（RapidAPI）のキー をそれぞれ登録（任意: `VITE_GOOGLE_MAPS_MAP_ID`）
+3. [Actions の「Build and deploy to GitHub Pages」](https://github.com/IsamuTakiguchi/naviroot/actions/workflows/deploy.yml) →「Run workflow」で再公開。以後は push のたびに自動で組み込まれます
+
+登録後はアプリのマイページに「設定済み（ビルド時）」と表示されます。端末に保存したキーがある場合はそちらが優先されます。公開サイトのプログラムにキーが含まれるため、Google 側は「ウェブサイトの制限」で `https://isamutakiguchi.github.io/*` のみ許可してください（RapidAPI 側は Basic プランの無料上限で保護されます）。
 
 ## 乗換案内（NAVITIME API）の設定
 
@@ -63,7 +73,7 @@ Google Maps が API キーを拒否したときの標準ダイアログです。
 
 ```bash
 npm install
-cp .env.example .env   # VITE_GOOGLE_MAPS_API_KEY を記入（アプリ内で貼り付ける場合は不要）
+cp .env.example .env   # VITE_GOOGLE_MAPS_API_KEY / VITE_NAVITIME_API_KEY を記入（アプリ内で貼り付ける場合は不要）
 npm run dev            # 開発サーバー http://localhost:5173
 npm run build          # 型チェック + 本番ビルド（dist/）
 npm run preview        # ビルド結果をローカル確認

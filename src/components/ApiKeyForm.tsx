@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { saveApiKey } from '../config';
+import { requestPersistentStorage } from '../lib/storage';
 
 interface Props {
   onSaved?: () => void;
@@ -45,6 +46,7 @@ export function ApiKeyForm({
       setError('この端末に保存できませんでした。ブラウザのプライベートモードでは保存できない場合があります。');
       return;
     }
+    void requestPersistentStorage();
     onSaved?.();
     if (reload) window.location.reload();
     else setKey('');

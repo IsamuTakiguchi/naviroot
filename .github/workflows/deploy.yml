@@ -31,6 +31,11 @@ jobs:
         run: npm run build
         env:
           VITE_BASE_PATH: /${{ github.event.repository.name }}/
+          # リポジトリの Settings → Secrets and variables → Actions に登録すると、キーがアプリに組み込まれ
+          # 端末側で入力しなくてよくなる（未登録なら空のまま = 従来どおり端末に保存したキーを使う）
+          VITE_GOOGLE_MAPS_API_KEY: ${{ secrets.VITE_GOOGLE_MAPS_API_KEY }}
+          VITE_NAVITIME_API_KEY: ${{ secrets.VITE_NAVITIME_API_KEY }}
+          VITE_GOOGLE_MAPS_MAP_ID: ${{ secrets.VITE_GOOGLE_MAPS_MAP_ID }}
       - name: SPA fallback for deep links
         run: cp dist/index.html dist/404.html
       - uses: actions/upload-pages-artifact@v3

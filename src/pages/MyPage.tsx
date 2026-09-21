@@ -14,9 +14,11 @@ import {
   getNavitimeKey,
   hasApiKey,
   NAVITIME_FREE_LIMIT,
+  navitimeKeySource,
   readNavitimeUsage,
   saveNavitimeKey,
 } from '../config';
+import { KeyPersistNotice } from '../components/KeyPersistNotice';
 import { ApiKeyForm } from '../components/ApiKeyForm';
 import { validateNavitimeKey } from '../components/NavitimeKeyNotice';
 import { useState } from 'react';
@@ -33,7 +35,10 @@ export function MyPage() {
   const [editingKey, setEditingKey] = useState(false);
   const [editingNavitime, setEditingNavitime] = useState(false);
   const keySource = apiKeySource();
+  const navitimeSource = navitimeKeySource();
   const hasNavitime = !!getNavitimeKey();
+  // 端末保存のキーがある間は、消えないようにする手順を案内する
+  const showPersist = keySource === 'stored' || navitimeSource === 'stored';
   const usage = readNavitimeUsage();
 
   const openFavorite = (f: Favorite) => {
@@ -162,12 +167,12 @@ export function MyPage() {
           </span>
           <span className="row">
             <span style={{ color: hasNavitime ? 'var(--color-success)' : 'var(--color-text-muted)', fontSize: 13 }}>
-              {hasNavitime ? '設定済み' : '未設定（Google マップ等へ引き渡し）'}
+              {navitimeSource === 'stored' ? '設定済み（この端末）' : navitimeSource === 'env' ? '設定済み（ビルド時）' : '未設定（Google マップ等へ引き渡し）'}
             </span>
             <button type="button" className="btn small" onClick={() => setEditingNavitime((v) => !v)}>
               {editingNavitime ? '閉じる' : hasNavitime ? '変更' : '設定'}
             </button>
-            {hasNavitime && (
+            {navitimeSource === 'stored' && (
               <button
                 type="button"
                 className="btn small danger"
@@ -183,6 +188,11 @@ export function MyPage() {
             )}
           </span>
         </div>
+        {showPersist && (
+          <div style={{ paddingTop: 12, borderTop: '1px solid var(--color-border)', marginTop: 10 }}>
+            <KeyPersistNotice />
+          </div>
+        )}
         {editingNavitime && (
           <div style={{ paddingTop: 10 }}>
             <ApiKeyForm

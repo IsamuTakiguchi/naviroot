@@ -1,5 +1,6 @@
 import { NAVITIME_FREE_LIMIT, saveNavitimeKey } from '../config';
 import { ApiKeyForm } from './ApiKeyForm';
+import { KeyPersistNotice } from './KeyPersistNotice';
 
 const RAPIDAPI_URL = 'https://rapidapi.com/navitimejapan-navitimejapan/api/navitime-route-totalnavi';
 const RAPIDAPI_APPS_URL = 'https://rapidapi.com/developer/apps';
@@ -48,9 +49,10 @@ export function NavitimeKeyNotice({ compact }: { compact?: boolean }) {
         submitLabel="保存"
         compact
       />
-      <p className="alert info" style={{ fontSize: 13, marginBottom: 0 }}>
+      <p className="alert info" style={{ fontSize: 13 }}>
         キーはこの端末のブラウザ内にだけ保存されます。無料枠を超えた場合や、キーを設定しない場合は Google マップ・Yahoo!乗換案内に検索条件を引き渡します。
       </p>
+      <KeyPersistNotice compact />
     </div>
   );
 }

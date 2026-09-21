@@ -1,12 +1,18 @@
-import { loadJson, removeKey, saveJson } from './lib/storage';
+import { loadJson, loadString, removeKey, saveJson } from './lib/storage';
 
 const API_KEY_STORAGE = 'apiKey';
 
+/**
+ * ビルド時に埋め込まれたキー（GitHub Secrets → Actions の環境変数 → import.meta.env）。
+ * 端末の保存領域に依存しないため、アプリの更新や再インストールで消えない。
+ */
 const BUILD_TIME_KEY: string = (import.meta.env.VITE_GOOGLE_MAPS_API_KEY ?? '').trim();
+
+export type KeySource = 'stored' | 'env' | 'none';
 
 /** API キー。アプリ内で保存したもの（localStorage）を優先し、無ければビルド時の環境変数を使う。 */
 export function getApiKey(): string {
-  const stored = loadJson<string>(API_KEY_STORAGE, '').trim();
+  const stored = loadString(API_KEY_STORAGE).trim();
   return stored || BUILD_TIME_KEY;
 }
 
@@ -20,11 +26,15 @@ export function clearApiKey(): void {
   removeKey(API_KEY_STORAGE);
 }
 
-export function apiKeySource(): 'stored' | 'env' | 'none' {
-  if (loadJson<string>(API_KEY_STORAGE, '').trim()) return 'stored';
+export function apiKeySource(): KeySource {
+  if (loadString(API_KEY_STORAGE).trim()) return 'stored';
   if (BUILD_TIME_KEY) return 'env';
   return 'none';
 }
+
+/** GitHub Secrets に登録すればビルド時にキーが組み込まれる。案内用のリンク。 */
+export const GITHUB_SECRETS_URL = 'https://github.com/IsamuTakiguchi/naviroot/settings/secrets/actions';
+export const GITHUB_ACTIONS_URL = 'https://github.com/IsamuTakiguchi/naviroot/actions/workflows/deploy.yml';
 
 /* ---- NAVITIME（RapidAPI）乗換案内 ---- */
 
@@ -36,8 +46,18 @@ export const NAVITIME_HOST = 'navitime-route-totalnavi.p.rapidapi.com';
 /** RapidAPI Basic プランの月間無料リクエスト数 */
 export const NAVITIME_FREE_LIMIT = 500;
 
+const NAVITIME_BUILD_TIME_KEY: string = (import.meta.env.VITE_NAVITIME_API_KEY ?? '').trim();
+
+/** NAVITIME のキー。端末に保存したものを優先し、無ければビルド時の環境変数を使う。 */
 export function getNavitimeKey(): string {
-  return loadJson<string>(NAVITIME_KEY_STORAGE, '').trim();
+  const stored = loadString(NAVITIME_KEY_STORAGE).trim();
+  return stored || NAVITIME_BUILD_TIME_KEY;
+}
+
+export function navitimeKeySource(): KeySource {
+  if (loadString(NAVITIME_KEY_STORAGE).trim()) return 'stored';
+  if (NAVITIME_BUILD_TIME_KEY) return 'env';
+  return 'none';
 }
 
 export function saveNavitimeKey(key: string): boolean {

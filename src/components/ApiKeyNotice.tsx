@@ -1,4 +1,5 @@
 import { ApiKeyForm } from './ApiKeyForm';
+import { KeyPersistNotice } from './KeyPersistNotice';
 
 const CONSOLE = 'https://console.cloud.google.com';
 
@@ -11,6 +12,7 @@ export function ApiKeyNotice() {
           取得した API キーを下に貼り付けて「保存して開始」を押すと、すぐに使えます。キーはこの端末のブラウザ内にだけ保存されます。
         </p>
         <ApiKeyForm />
+        <KeyPersistNotice compact />
       </div>
 
       <div className="card">

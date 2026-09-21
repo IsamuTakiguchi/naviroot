@@ -1415,6 +1415,20 @@ select {
 }
 
 /* ---------- セットアップ・設定 ---------- */
+.key-persist {
+  padding: 12px 14px;
+  border-radius: var(--radius);
+  background: var(--nt-green-soft);
+  border: 1px solid rgba(20, 163, 78, 0.25);
+}
+
+.key-persist code {
+  font-size: 12px;
+  padding: 1px 5px;
+  border-radius: 6px;
+  background: var(--glass-strong);
+}
+
 .setup {
   max-width: 680px;
   margin: 24px auto;
