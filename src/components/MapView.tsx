@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { Map, Marker, useMap } from '@vis.gl/react-google-maps';
 import type { LatLng } from '../types';
 import { DEFAULT_CENTER, DEFAULT_ZOOM, GOOGLE_MAPS_MAP_ID } from '../config';
+import { drawRoute, prefersReducedMotion } from '../lib/routeAnim';
 
 export interface MapViewProps {
   center?: LatLng;
@@ -25,25 +26,13 @@ function RoutePolyline({ path, color }: { path?: google.maps.LatLng[] | LatLng[]
   const map = useMap();
   useEffect(() => {
     if (!map || !path || path.length === 0) return;
-    const line = new google.maps.Polyline({
-      path,
+    return drawRoute({
+      Polyline: google.maps.Polyline,
       map,
-      strokeColor: color ?? '#14a34e',
-      strokeOpacity: 0.9,
-      strokeWeight: 6,
-    });
-    const casing = new google.maps.Polyline({
       path,
-      map,
-      strokeColor: '#ffffff',
-      strokeOpacity: 0.9,
-      strokeWeight: 10,
-      zIndex: -1,
+      color: color ?? '#14a34e',
+      reducedMotion: prefersReducedMotion(),
     });
-    return () => {
-      line.setMap(null);
-      casing.setMap(null);
-    };
   }, [map, path, color]);
   return null;
 }
