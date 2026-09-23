@@ -29,3 +29,9 @@ export function yahooTransitUrl(from: Place, to: Place, time?: string, timeType:
   }
   return `https://transit.yahoo.co.jp/search/result?${q.toString()}`;
 }
+
+/** Google マップで地点の周辺を開く（「目的地周辺の地図をみる」） */
+export function googleMapsPlaceUrl(place: Place): string {
+  const q = place.location ? `${place.location.lat},${place.location.lng}` : place.name;
+  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(q)}`;
+}

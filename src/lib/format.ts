@@ -13,17 +13,28 @@ export function formatDuration(sec: number): string {
   return `${h}時間${m}分`;
 }
 
-/** 3250 → 「3.3km」、850 → 「850m」 */
+/** 3250 → 「3.3km」、32802 → 「32.8km」（NAVITIME と同じく 100km 未満は小数 1 桁）、850 → 「850m」 */
 export function formatDistance(meters: number): string {
   if (meters < 1000) return `${Math.round(meters)}m`;
   const km = meters / 1000;
-  return `${km < 10 ? km.toFixed(1) : Math.round(km)}km`;
+  return `${km < 100 ? km.toFixed(1) : Math.round(km)}km`;
 }
 
 /** 1234 → 「¥1,234」 */
 export function formatFare(value: number, currency = 'JPY'): string {
   if (currency === 'JPY') return `¥${Math.round(value).toLocaleString('ja-JP')}`;
   return `${value.toLocaleString('ja-JP')} ${currency}`;
+}
+
+/** 680 → 「680円」（NAVITIME の表記） */
+export function formatYen(value: number): string {
+  return `${Math.round(value).toLocaleString('ja-JP')}円`;
+}
+
+/** Date → 「9月23日(水)」 */
+export function formatDateLong(d: Date): string {
+  const days = ['日', '月', '火', '水', '木', '金', '土'];
+  return `${d.getMonth() + 1}月${d.getDate()}日(${days[d.getDay()]})`;
 }
 
 /** Date → 「08:05」 */

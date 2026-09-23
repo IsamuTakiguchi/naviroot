@@ -14,6 +14,8 @@ import {
   type NavitimeStatus,
 } from '../lib/navitime';
 import { collectFollowups, shiftParams, type SlideDirection } from '../lib/followups';
+import { trimStationWalks } from '../lib/stationWalk';
+import { assignBadges } from '../lib/transit';
 import { useSettings } from './useSettings';
 
 /** 後続便の自動取得: この件数に満たなければ、最大この回数まで時刻をずらして再検索 */
@@ -44,6 +46,22 @@ export interface TransitSearchState {
 
 const EMPTY: TransitSearchState = { loading: false, plans: [], apiCalls: 0, firstBatch: 0 };
 
+interface LastSearch {
+  key: string;
+  params: Record<string, string>;
+  fromName: string;
+  toName: string;
+}
+
+/**
+ * NAVITIME から候補を取り、駅を指定したときの構内徒歩を外してからバッジを付け直す。
+ * 最初の検索・後続便・別の経路・前後の便のすべてでこれを通す。
+ */
+async function fetchPlans(last: LastSearch, params: Record<string, string> = last.params): Promise<TransitPlan[]> {
+  const plans = await requestNavitimePlans(last.key, params);
+  return assignBadges(plans.map((p) => trimStationWalks(p, last.fromName, last.toName)));
+}
+
 /** 乗換案内の検索フック（NAVITIME API）。キーが無ければ NO_PROVIDER を返し、画面側で外部サービスへ誘導する。 */
 export function useTransitSearch() {
   const placesLib = useMapsLibrary('places');
@@ -51,7 +69,7 @@ export function useTransitSearch() {
   const [state, setState] = useState<TransitSearchState>(EMPTY);
   const seq = useRef(0);
   /** 直近の検索で使ったキーとパラメータ（追加取得・前後の便用） */
-  const lastRef = useRef<{ key: string; params: Record<string, string> } | null>(null);
+  const lastRef = useRef<LastSearch | null>(null);
   /** 現在の候補（setState の更新関数は遅延実行されるため、同期的に参照する用） */
   const plansRef = useRef<TransitPlan[]>([]);
   plansRef.current = state.plans;
@@ -69,16 +87,17 @@ export function useTransitSearch() {
         if (!key) throw new NavitimeError('NO_PROVIDER', NAVITIME_MESSAGES.NO_PROVIDER);
         if (!from.location || !to.location) throw new NavitimeError('RESOLVE', NAVITIME_MESSAGES.RESOLVE);
         const params = buildNavitimeParams(from.location, to.location, query.timeType, query.time, NAVITIME_LIMIT, query.filter ?? 'all');
-        const first = await requestNavitimePlans(key, params);
+        const last: LastSearch = { key, params, fromName: from.name, toName: to.name };
+        const first = await fetchPlans(last);
         if (my !== seq.current) return undefined;
         if (first.length === 0) throw new NavitimeError('ZERO_RESULTS', NAVITIME_MESSAGES.ZERO_RESULTS, 'items=0');
-        lastRef.current = { key, params };
+        lastRef.current = last;
         // NAVITIME アプリのように後続便を並べる: 候補が少なければ時刻をずらして追加取得
         let plans = first;
         let calls = 1;
         if (autoFollowups) {
           setState({ ...EMPTY, loading: true, plans: first, apiCalls: 1, firstBatch: first.length });
-          const r = await collectFollowups((p) => requestNavitimePlans(key, p), params, first, { min: MIN_CANDIDATES, max: AUTO_FOLLOWUPS });
+          const r = await collectFollowups((p) => fetchPlans(last, p), params, first, { min: MIN_CANDIDATES, max: AUTO_FOLLOWUPS });
           if (my !== seq.current) return undefined;
           plans = r.plans;
           calls += r.calls;
@@ -114,7 +133,7 @@ export function useTransitSearch() {
     let failure: string | undefined;
     for (const order of EXTRA_ORDERS) {
       try {
-        extra.push(await requestNavitimePlans(last.key, { ...last.params, order }));
+        extra.push(await fetchPlans(last, { ...last.params, order }));
         calls++;
       } catch (err) {
         failure = err instanceof NavitimeError ? err.message : '追加の候補を取得できませんでした。';
@@ -149,7 +168,7 @@ export function useTransitSearch() {
     let batch: TransitPlan[] = [];
     let called = 0;
     try {
-      batch = await requestNavitimePlans(last.key, shifted);
+      batch = await fetchPlans(last, shifted);
       called = 1;
     } catch (err) {
       note = err instanceof NavitimeError && err.status !== 'ZERO_RESULTS' ? err.message : undefined;

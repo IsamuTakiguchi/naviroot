@@ -1,161 +1,261 @@
-import type { TransitPlan } from '../types';
-import { formatDistance, formatDuration, formatFare, formatTime, VEHICLE_ICON } from '../lib/format';
+import { useState, type ReactNode } from 'react';
+import type { Place, TransitPlan } from '../types';
+import { formatDateLong, formatDistance, formatDuration, formatTime, formatYen, VEHICLE_ICON } from '../lib/format';
 import { Badges } from './TransitResultList';
 import { Icon } from './Icon';
 import { downloadIcs } from '../lib/ics';
 import { buildTimelineRows } from '../lib/timeline';
+import { googleMapsPlaceUrl } from '../lib/externalLinks';
+import { planShareText, shareText } from '../lib/share';
+import type { SlideDirection } from '../lib/followups';
 
 interface Props {
   plan: TransitPlan;
   fromName: string;
   toName: string;
+  /** 目的地（「目的地周辺の地図をみる」用） */
+  destination?: Place;
   onToggleFavorite?: () => void;
   isFavorite?: boolean;
   onShowMap?: () => void;
-  /** ルートタブ用。省略するとタブを表示しない */
+  /** 地図（「地図」を押したときに操作列の下に出す） */
+  mapPanel?: ReactNode;
+  /** ルートタブ・見出しの番号用。省略するとタブを表示しない */
   plans?: TransitPlan[];
   onSelectPlan?: (plan: TransitPlan) => void;
   /** 駅の時刻表を開く */
   onOpenTimetable?: (fromStop: string, toStop: string) => void;
+  /** 「‹ 検索結果」 */
+  onBack?: () => void;
+  /** 「再検索」 */
+  onReSearch?: () => void;
+  /** 「前の便」「次の便」。指定しない方向のボタンは出さない */
+  onSlide?: (direction: SlideDirection) => void;
+  slideDirections?: SlideDirection[];
 }
 
 export function TransitDetail({
   plan,
   fromName,
   toName,
+  destination,
   onToggleFavorite,
   isFavorite,
   onShowMap,
+  mapPanel,
   plans,
   onSelectPlan,
   onOpenTimetable,
+  onBack,
+  onReSearch,
+  onSlide,
+  slideDirections = ['prev', 'next'],
 }: Props) {
   const rows = buildTimelineRows(plan, fromName, toName);
+  const index = plans ? plans.findIndex((p) => p.id === plan.id) : -1;
+  const [shareNote, setShareNote] = useState<string>();
+
+  const share = async () => {
+    const r = await shareText('NAVIROOT 乗換案内', planShareText(plan, fromName, toName), window.location.href);
+    setShareNote(r === 'copied' ? '経路をコピーしました' : r === 'failed' ? '共有できませんでした' : undefined);
+  };
 
   return (
-    <div className="card nt-detail">
-      {plans && plans.length > 1 && onSelectPlan && (
-        <div className="nt-tabs" role="tablist" aria-label="ルート">
-          {plans.map((p, i) => (
-            <button
-              key={p.id}
-              type="button"
-              role="tab"
-              aria-selected={p.id === plan.id}
-              className={`nt-tab ${p.id === plan.id ? 'active' : ''}`}
-              onClick={() => onSelectPlan(p)}
-            >
-              ルート{i + 1}
+    <>
+      {(onBack || onReSearch) && (
+        <div className="nv-bar">
+          {onBack ? (
+            <button type="button" className="nv-bar-link" onClick={onBack}>
+              <Icon name="chevron-left" size={22} /> 検索結果
             </button>
-          ))}
+          ) : (
+            <span />
+          )}
+          <div className="nv-bar-title">
+            {index >= 0 && <div className="nv-bar-route">ルート{index + 1}</div>}
+            <div className="nv-bar-times">
+              {formatTime(plan.departureTime)} ⇒ {formatTime(plan.arrivalTime)}
+            </div>
+          </div>
+          {onReSearch ? (
+            <button type="button" className="nv-bar-link end" onClick={onReSearch}>
+              再検索
+            </button>
+          ) : (
+            <span />
+          )}
         </div>
       )}
 
-      <div className="nt-detail-head">
-        <div className="nt-detail-times">
-          {formatTime(plan.departureTime)} <span className="arrow">→</span> {formatTime(plan.arrivalTime)}
-          <span className="nt-dur">（{formatDuration(plan.durationSec)}）</span>
-        </div>
-        <div className="nt-detail-meta">
-          <span>乗換{plan.transfers}回</span>
-          <span className="fare">{plan.fare ? formatFare(plan.fare.value, plan.fare.currency) : '運賃情報なし'}</span>
-          {plan.walkSec > 0 && <span>徒歩 {formatDuration(plan.walkSec)}</span>}
-          <Badges badges={plan.badges} />
-        </div>
-      </div>
-
-      <div className="row wrap nt-actions">
-        {onShowMap && (
-          <button type="button" className="btn small" onClick={onShowMap}>
-            <Icon name="map" size={16} /> 地図で見る
-          </button>
+      <div className="card nt-detail nv-detail">
+        {plans && plans.length > 1 && onSelectPlan && (
+          <div className="nt-tabs" role="tablist" aria-label="ルート">
+            {plans.map((p, i) => (
+              <button
+                key={p.id}
+                type="button"
+                role="tab"
+                aria-selected={p.id === plan.id}
+                className={`nt-tab ${p.id === plan.id ? 'active' : ''}`}
+                onClick={() => onSelectPlan(p)}
+              >
+                ルート{i + 1}
+              </button>
+            ))}
+          </div>
         )}
-        {onToggleFavorite && (
-          <button type="button" className={`btn small ${isFavorite ? 'fav-on' : ''}`} onClick={onToggleFavorite}>
-            {isFavorite ? <Icon name="star" size={16} /> : <Icon name="star-outline" size={16} />}
-            {isFavorite ? '登録済み' : 'お気に入り'}
-          </button>
-        )}
-        <button type="button" className="btn small" onClick={() => window.print()}>
-          <Icon name="print" size={16} /> ルート印刷
-        </button>
-        <button type="button" className="btn small" onClick={() => downloadIcs(plan, fromName, toName)}>
-          <Icon name="calendar" size={16} /> カレンダー
-        </button>
-      </div>
 
-      <div className="nt-timeline">
-        {rows.map((row, i) => {
-          if (row.kind === 'point') {
-            return (
-              <div key={i} className={`nt-point ${row.terminal ?? ''}`} style={{ ['--i' as string]: i }}>
-                <div className="nt-point-time">
-                  {row.arrive && (
-                    <div>
-                      <span className="t">{formatTime(row.arrive)}</span> <span className="lbl">着</span>
-                    </div>
-                  )}
-                  {row.depart && (
-                    <div>
-                      <span className="t">{formatTime(row.depart)}</span> <span className="lbl">発</span>
-                    </div>
-                  )}
-                </div>
-                <div className="nt-point-dot" aria-hidden>
-                  <span />
-                </div>
-                <div className="nt-point-name">
-                  <span className="name">{row.name}</span>
-                  {onOpenTimetable && row.depart && row.nextStop && (
-                    <button type="button" className="nt-tt" onClick={() => onOpenTimetable(row.name, row.nextStop!)}>
-                      <Icon name="clock" size={13} /> 時刻表
+        {/* 要約: 「40分 680円 乗換0回」「9月23日(水) 32.8km」 */}
+        <div className="nv-summary">
+          <div className="nv-sum-main">
+            <div className="nv-sum-line">
+              <span>{formatDuration(plan.durationSec)}</span>
+              {plan.fare && <span className="nv-fare">{formatYen(plan.fare.value)}</span>}
+              <span>乗換{plan.transfers}回</span>
+            </div>
+            <div className="nv-sum-sub">
+              {formatDateLong(plan.departureTime)}
+              {plan.distanceM ? ` ${formatDistance(plan.distanceM)}` : ''}
+              {plan.walkSec > 0 && <span className="nv-sum-walk">徒歩 {formatDuration(plan.walkSec)}</span>}
+            </div>
+          </div>
+          <div className="nv-sum-side">
+            <Badges badges={plan.badges} />
+            {onToggleFavorite && (
+              <button
+                type="button"
+                className={`nv-memo ${isFavorite ? 'on' : ''}`}
+                onClick={onToggleFavorite}
+                aria-pressed={isFavorite}
+              >
+                <Icon name={isFavorite ? 'star' : 'star-outline'} size={24} />
+                <span>ルートメモ</span>
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* 操作アイコン列 */}
+        <div className="nv-actions">
+          {onShowMap && (
+            <button type="button" onClick={onShowMap}>
+              <Icon name="map" size={24} />
+              <span>地図</span>
+            </button>
+          )}
+          <button type="button" onClick={() => window.print()}>
+            <Icon name="print" size={24} />
+            <span>印刷</span>
+          </button>
+          <button type="button" onClick={() => downloadIcs(plan, fromName, toName)}>
+            <Icon name="calendar" size={24} />
+            <span>カレンダー</span>
+          </button>
+          <button type="button" onClick={() => void share()}>
+            <Icon name="share" size={24} />
+            <span>共有</span>
+          </button>
+        </div>
+        {shareNote && <div className="nv-note">{shareNote}</div>}
+        {mapPanel}
+
+        {/* タイムライン */}
+        <div className="nv-timeline">
+          {rows.map((row, i) => {
+            if (row.kind === 'point') {
+              return (
+                <div key={i} className={`nv-pt ${row.terminal ?? ''}`} style={{ ['--i' as string]: i }}>
+                  <div className="nv-pt-time">
+                    {row.arrive && (
+                      <div className={row.depart ? 'arr sub' : 'arr'}>
+                        <span className="t">{formatTime(row.arrive)}</span>
+                        <span className="k">着</span>
+                      </div>
+                    )}
+                    {row.depart && (
+                      <div className="dep">
+                        <span className="t">{formatTime(row.depart)}</span>
+                        <span className="k">発</span>
+                      </div>
+                    )}
+                  </div>
+                  <div className="nv-pt-name">{row.name}</div>
+                  {onOpenTimetable && row.depart && row.nextStop ? (
+                    <button type="button" className="nv-tt" onClick={() => onOpenTimetable(row.name, row.nextStop!)}>
+                      <Icon name="clock" size={22} />
+                      <span>時刻表</span>
                     </button>
+                  ) : (
+                    <span />
                   )}
                 </div>
-              </div>
-            );
-          }
+              );
+            }
 
-          if (row.kind === 'walk') {
-            return (
-              <div key={i} className="nt-move walk" style={{ ['--i' as string]: i }}>
-                <div className="nt-move-icon">
-                  <Icon name="walk" size={20} />
-                </div>
-                <div className="nt-move-bar" aria-hidden />
-                <div className="nt-move-body">
-                  <div className="nt-move-title">徒歩</div>
-                  <div className="nt-move-sub">
-                    {formatDuration(row.segment.durationSec)}　{formatDistance(row.segment.distanceM)}
+            if (row.kind === 'walk') {
+              return (
+                <div key={i} className="nv-walk" style={{ ['--i' as string]: i }}>
+                  <div className="nv-side">
+                    <Icon name="walk" size={20} />
+                  </div>
+                  <div className="nv-walk-bar" aria-hidden />
+                  <div className="nv-walk-body">
+                    徒歩 {formatDuration(row.segment.durationSec)}
+                    {row.segment.distanceM > 0 && <span className="dist">（{formatDistance(row.segment.distanceM)}）</span>}
                   </div>
                 </div>
+              );
+            }
+
+            const s = row.segment;
+            const color = s.lineColor ?? 'var(--accent)';
+            return (
+              <div key={i} className="nv-ride" style={{ ['--seg-color' as string]: color, ['--i' as string]: i }}>
+                <div className="nv-side">
+                  {s.numStops > 0 && <div className="nv-stops">{s.numStops}駅</div>}
+                  <div>{formatDuration(s.durationSec)}</div>
+                  {s.distanceM ? <div>{formatDistance(s.distanceM)}</div> : null}
+                </div>
+                <div className="nv-ride-bar" aria-hidden />
+                <div className="nv-ride-body">
+                  <div className="nv-ride-line">
+                    <span className="nv-line-mark" aria-hidden>
+                      <Icon name={VEHICLE_ICON[s.vehicle]} size={16} />
+                    </span>
+                    <span>{s.lineName}</span>
+                  </div>
+                  {s.headsign && <div className="nv-ride-head">{s.headsign}行</div>}
+                  {s.agency && <div className="nv-ride-sub">{s.agency}</div>}
+                </div>
+                {s.fare && <div className="nv-ride-fare">{formatYen(s.fare.value)}</div>}
               </div>
             );
-          }
+          })}
+        </div>
 
-          const s = row.segment;
-          const color = s.lineColor ?? 'var(--accent)';
-          return (
-            <div key={i} className="nt-move transit" style={{ ['--seg-color' as string]: color, ['--i' as string]: i }}>
-              <div className="nt-move-icon">
-                <Icon name={VEHICLE_ICON[s.vehicle]} size={20} />
-                {s.numStops > 0 && <span className="nt-stops">{s.numStops}駅</span>}
-              </div>
-              <div className="nt-move-bar" aria-hidden />
-              <div className="nt-move-body">
-                <div className="nt-move-title">
-                  {s.lineName}
-                  {s.headsign && <span className="head"> {s.headsign} 行</span>}
-                </div>
-                <div className="nt-move-sub">
-                  {formatDuration(s.durationSec)}
-                  {s.agency && <>　{s.agency}</>}
-                </div>
-              </div>
-            </div>
-          );
-        })}
+        {destination && (
+          <a className="nv-dest-map" href={googleMapsPlaceUrl(destination)} target="_blank" rel="noreferrer">
+            <Icon name="pin" size={22} />
+            <span>目的地周辺の地図をみる</span>
+            <Icon name="external" size={20} />
+          </a>
+        )}
+
+        {onSlide && slideDirections.length > 0 && (
+          <div className="nv-slide">
+            {slideDirections.includes('prev') && (
+              <button type="button" onClick={() => onSlide('prev')}>
+                前の便
+              </button>
+            )}
+            {slideDirections.includes('next') && (
+              <button type="button" onClick={() => onSlide('next')}>
+                次の便
+              </button>
+            )}
+          </div>
+        )}
       </div>
-    </div>
+    </>
   );
 }

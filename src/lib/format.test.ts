@@ -11,7 +11,9 @@ describe('format', () => {
   it('formatDistance', () => {
     expect(formatDistance(850)).toBe('850m');
     expect(formatDistance(3250)).toBe('3.3km');
-    expect(formatDistance(12400)).toBe('12km');
+    expect(formatDistance(12400)).toBe('12.4km');
+    expect(formatDistance(32802)).toBe('32.8km');
+    expect(formatDistance(123400)).toBe('123km');
   });
   it('formatFare', () => {
     expect(formatFare(1234)).toBe('¥1,234');

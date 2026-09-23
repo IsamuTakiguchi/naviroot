@@ -79,9 +79,17 @@ export function TransitPage() {
     return () => window.clearTimeout(timer);
   }, [params, transit.ready, run]);
 
-  const submit = () => {
+  /** override は日時指定シートの「この条件で検索」用（state の更新を待たずに新しい日時で検索する） */
+  const submit = (override?: { time: string | undefined; timeType: TimeType }) => {
     if (!from || !to) return;
-    const q: RouteQuery = { from, to, mode: 'TRANSIT', time, timeType, filter };
+    const q: RouteQuery = {
+      from,
+      to,
+      mode: 'TRANSIT',
+      time: override ? override.time : time,
+      timeType: override ? override.timeType : timeType,
+      filter,
+    };
     const next = queryToParams(q);
     if (next.toString() === params.toString()) {
       lastRun.current = next.toString();
@@ -120,7 +128,8 @@ export function TransitPage() {
         showTime
         filter={filter}
         onFilterChange={setFilter}
-        onSubmit={submit}
+        onSubmit={() => submit()}
+        onSubmitWithTime={(t, tt) => submit({ time: t, timeType: tt })}
         loading={transit.loading}
       />
 
@@ -172,42 +181,52 @@ export function TransitPage() {
           </div>
 
           {selected ? (
-            <>
-              <button type="button" className="btn small ghost" onClick={() => setSelected(undefined)}>
-                <Icon name="chevron-left" size={16} /> ルート一覧に戻る
-              </button>
-              {showMap && (
-                <div className="card nt-inline-map">
-                  <MapView
-                    path={selected.overviewPath}
-                    bounds={selected.bounds}
-                    journey={selected.legs}
-                    origin={from.location}
-                    destination={to.location}
-                  />
-                  {selected.overviewPath && !selected.pathDetailed && <div className="map-note">地図の経路は駅・停留所を直線でつないだ簡易表示です</div>}
-                </div>
-              )}
-              <TransitDetail
-                plan={selected}
-                plans={plans}
-                onSelectPlan={setSelected}
-                fromName={from.name}
-                toName={to.name}
-                isFavorite={isFav}
-                onToggleFavorite={() => {
-                  if (isFav) favorites.removeRoute(from, to, 'TRANSIT');
-                  else favorites.addRoute(from, to, 'TRANSIT');
-                }}
-                onShowMap={() => setShowMap((v) => !v)}
-                onOpenTimetable={(fromStop, toStop) =>
-                  navigate({
-                    pathname: '/timetable',
-                    search: queryToParams({ from: { name: fromStop }, to: { name: toStop }, mode: 'TRANSIT', timeType: 'departure' }).toString(),
-                  })
-                }
-              />
-            </>
+            <TransitDetail
+              plan={selected}
+              plans={plans}
+              onSelectPlan={setSelected}
+              fromName={from.name}
+              toName={to.name}
+              destination={to}
+              isFavorite={isFav}
+              onToggleFavorite={() => {
+                if (isFav) favorites.removeRoute(from, to, 'TRANSIT');
+                else favorites.addRoute(from, to, 'TRANSIT');
+              }}
+              onShowMap={() => setShowMap((v) => !v)}
+              mapPanel={
+                showMap ? (
+                  <div className="nt-inline-map">
+                    <MapView
+                      path={selected.overviewPath}
+                      bounds={selected.bounds}
+                      journey={selected.legs}
+                      origin={from.location}
+                      destination={to.location}
+                    />
+                    {selected.overviewPath && !selected.pathDetailed && (
+                      <div className="map-note">地図の経路は駅・停留所を直線でつないだ簡易表示です</div>
+                    )}
+                  </div>
+                ) : null
+              }
+              onOpenTimetable={(fromStop, toStop) =>
+                navigate({
+                  pathname: '/timetable',
+                  search: queryToParams({ from: { name: fromStop }, to: { name: toStop }, mode: 'TRANSIT', timeType: 'departure' }).toString(),
+                })
+              }
+              onBack={() => setSelected(undefined)}
+              onReSearch={() => {
+                setSelected(undefined);
+                document.querySelector('.app-main')?.scrollTo({ top: 0, behavior: 'smooth' });
+              }}
+              onSlide={(dir) => {
+                setSelected(undefined);
+                void transit.slide(dir);
+              }}
+              slideDirections={[...(timeType !== 'first' ? (['prev'] as const) : []), ...(timeType !== 'last' ? (['next'] as const) : [])]}
+            />
           ) : (
             <>
               {timeType !== 'first' && (

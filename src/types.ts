@@ -58,6 +58,10 @@ export interface TransitSegment {
   arrivalTime: Date;
   numStops: number;
   durationSec: number;
+  /** 乗車区間の距離（m） */
+  distanceM?: number;
+  /** 乗車区間の運賃（IC があれば IC） */
+  fare?: { value: number; currency: string; text: string };
 }
 
 export type PlanSegment = WalkSegment | TransitSegment;
@@ -70,6 +74,8 @@ export interface TransitPlan {
   transfers: number;
   fare?: { value: number; currency: string; text: string };
   walkSec: number;
+  /** 全体の距離（m） */
+  distanceM?: number;
   segments: PlanSegment[];
   summary: string;
   bounds?: google.maps.LatLngBounds;

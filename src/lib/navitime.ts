@@ -353,7 +353,7 @@ export function shapesToPath(shapes: NavitimeItem['shapes']): LatLng[] {
   return out;
 }
 
-function boundsOf(path: LatLng[]): google.maps.LatLngBounds | undefined {
+export function boundsOf(path: LatLng[]): google.maps.LatLngBounds | undefined {
   const g = (globalThis as { google?: typeof google }).google;
   if (!g?.maps?.LatLngBounds || path.length === 0) return undefined;
   const b = new g.maps.LatLngBounds();
@@ -434,6 +434,8 @@ export function itemToPlan(item: NavitimeItem, index: number, now: Date = new Da
       arrivalTime: parseDate(s.to_time, now),
       numStops: 0,
       durationSec,
+      distanceM: s.distance,
+      fare: fareOf(t?.fare),
     };
     segments.push(seg);
   }
@@ -451,6 +453,7 @@ export function itemToPlan(item: NavitimeItem, index: number, now: Date = new Da
     transfers: move.transit_count ?? Math.max(0, transit.length - 1),
     fare: fareOf(move.fare),
     walkSec: merged.filter((x) => x.kind === 'walk').reduce((a, x) => a + x.durationSec, 0),
+    distanceM: move.distance,
     segments: merged,
     summary: transit.map((x) => x.lineName).join(' → ') || '徒歩',
     bounds: boundsOf(path),

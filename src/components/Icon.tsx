@@ -33,7 +33,9 @@ export type IconName =
   | 'sun'
   | 'moon'
   | 'calendar'
-  | 'route';
+  | 'route'
+  | 'share'
+  | 'external';
 
 interface Def {
   /** 塗りつぶし系（fill=currentColor） */
@@ -214,6 +216,14 @@ const ICONS: Record<IconName, Def> = {
   },
   print: {
     stroke: <path d="M7 9V3.5h10V9M7 18H4.5V9.5h15V18H17M7 14.5h10V21H7z" />,
+  },
+  // 共有（箱から上向きの矢印）
+  share: {
+    stroke: <path d="M12 3v11.5M8 7l4-4 4 4M7.5 10.5H5.5v10h13v-10h-2" />,
+  },
+  // 外部で開く（枠と右上の矢印）
+  external: {
+    stroke: <path d="M13.5 4.5H19.5v6M19.5 4.5l-8 8M17 14v5.5H4.5V7H10" />,
   },
   calendar: {
     stroke: (

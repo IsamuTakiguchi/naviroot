@@ -5,7 +5,8 @@ import { Icon, type IconName } from './Icon';
 import { PlaceInput } from './PlaceInput';
 import { useGeolocation } from '../hooks/useGeolocation';
 import { useFavorites } from '../hooks/useFavorites';
-import { toDateTimeLocal } from '../lib/format';
+import { conditionLabel } from '../lib/timeWheel';
+import { TimeSheet } from './TimeSheet';
 
 interface Props {
   from?: Place;
@@ -20,6 +21,8 @@ interface Props {
   filter?: TransitFilter;
   onFilterChange?: (f: TransitFilter) => void;
   onSubmit: () => void;
+  /** 日時指定シートの「この条件で検索」。日時を確定してすぐ検索する */
+  onSubmitWithTime?: (time: string | undefined, timeType: TimeType) => void;
   submitLabel?: string;
   loading?: boolean;
 }
@@ -29,13 +32,6 @@ const FILTERS: { key: TransitFilter; icons: IconName[] }[] = [
   { key: 'bus', icons: ['bus'] },
   { key: 'train', icons: ['train'] },
   { key: 'no_express', icons: ['express'] },
-];
-
-const TIME_TYPES: { key: TimeType; label: string }[] = [
-  { key: 'departure', label: '出発' },
-  { key: 'arrival', label: '到着' },
-  { key: 'first', label: '始発' },
-  { key: 'last', label: '終電' },
 ];
 
 export function RouteForm(props: Props) {
@@ -51,11 +47,13 @@ export function RouteForm(props: Props) {
     filter = 'all',
     onFilterChange,
     onSubmit,
+    onSubmitWithTime,
     loading,
   } = props;
   const geo = useGeolocation();
   const { home, work } = useFavorites();
   const [locatingFor, setLocatingFor] = useState<'from' | 'to' | null>(null);
+  const [sheetOpen, setSheetOpen] = useState(false);
 
   const useCurrent = async (target: 'from' | 'to') => {
     setLocatingFor(target);
@@ -72,7 +70,6 @@ export function RouteForm(props: Props) {
     onToChange(from);
   };
 
-  const timeValue = time ?? toDateTimeLocal(new Date());
   const canSubmit = !!from?.name && !!to?.name && !loading;
 
   return (
@@ -84,25 +81,22 @@ export function RouteForm(props: Props) {
       }}
     >
       <div className="route-form">
-        <div className="dots">
-          <span className="dot" />
-          <span className="line" />
-          <span className="dot to" />
-        </div>
+        <button type="button" className="icon-btn swap" aria-label="出発地と目的地を入れ替え" onClick={swap}>
+          <Icon name="swap" size={22} />
+        </button>
+        <span className="rf-label dep">出発</span>
         <PlaceInput
           value={from}
-          placeholder="出発地（駅名・住所・スポット）"
+          placeholder="駅名・住所・スポット"
           onChange={onFromChange}
           onLocate={() => useCurrent('from')}
           locating={locatingFor === 'from'}
           bias={geo.position}
         />
-        <button type="button" className="icon-btn swap" aria-label="出発地と目的地を入れ替え" onClick={swap}>
-          <Icon name="swap" size={20} />
-        </button>
+        <span className="rf-label arr">到着</span>
         <PlaceInput
           value={to}
-          placeholder="目的地（駅名・住所・スポット）"
+          placeholder="駅名・住所・スポット"
           onChange={onToChange}
           onLocate={() => useCurrent('to')}
           locating={locatingFor === 'to'}
@@ -138,36 +132,29 @@ export function RouteForm(props: Props) {
         </div>
       )}
       {showTime && onTimeChange && (
-        <div className="time-row">
-          <div className="segmented" style={{ flex: '1 1 100%' }}>
-            {TIME_TYPES.map((t) => (
-              <button
-                key={t.key}
-                type="button"
-                className={timeType === t.key ? 'active' : ''}
-                onClick={() => onTimeChange(time, t.key)}
-              >
-                {t.label}
-              </button>
-            ))}
-          </div>
-          {timeType === 'first' || timeType === 'last' ? (
-            <input
-              type="date"
-              value={timeValue.slice(0, 10)}
-              onChange={(e) => onTimeChange(e.target.value ? `${e.target.value}T12:00` : undefined, timeType)}
-            />
-          ) : (
-            <input
-              type="datetime-local"
-              value={timeValue}
-              onChange={(e) => onTimeChange(e.target.value || undefined, timeType)}
-            />
-          )}
-          <button type="button" className="btn small" onClick={() => onTimeChange(undefined, timeType)}>
-            現在時刻
+        <>
+          <button type="button" className="time-cond" onClick={() => setSheetOpen(true)} aria-haspopup="dialog">
+            <Icon name="clock" size={20} />
+            {conditionLabel(time, timeType)}
           </button>
-        </div>
+          <TimeSheet
+            open={sheetOpen}
+            time={time}
+            timeType={timeType}
+            onCancel={() => setSheetOpen(false)}
+            onDone={(t, tt) => {
+              onTimeChange(t, tt);
+              setSheetOpen(false);
+            }}
+            onSearch={(t, tt) => {
+              onTimeChange(t, tt);
+              setSheetOpen(false);
+              if (!canSubmit) return;
+              if (onSubmitWithTime) onSubmitWithTime(t, tt);
+              else onSubmit();
+            }}
+          />
+        </>
       )}
       {onFilterChange && (
         <div className="chips" style={{ marginTop: 10 }} role="radiogroup" aria-label="交通手段">
@@ -188,7 +175,7 @@ export function RouteForm(props: Props) {
           ))}
         </div>
       )}
-      <button type="submit" className="btn primary block" style={{ marginTop: 12 }} disabled={!canSubmit}>
+      <button type="submit" className="btn search block" style={{ marginTop: 12 }} disabled={!canSubmit}>
         {loading ? '検索中…' : (props.submitLabel ?? '検索')}
       </button>
     </form>

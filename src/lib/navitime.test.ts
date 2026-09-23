@@ -188,6 +188,24 @@ describe('navitime', () => {
     expect(itemToPlan(item(), 0).pathDetailed).toBe(true);
   });
 
+  it('keeps per-ride distance and fare, and the total distance', () => {
+    const plan = itemToPlan(item(), 0);
+    const rides = plan.segments.filter((s) => s.kind === 'transit');
+    expect(rides.map((r) => (r.kind === 'transit' ? r.distanceM : undefined))).toEqual([3000, 2800]);
+    expect(plan.distanceM).toBe(6200);
+    const withFare = itemToPlan(
+      {
+        ...item(),
+        sections: item().sections.map((s) =>
+          s.type === 'move' && s.move === 'local_bus' ? { ...s, transport: { ...s.transport, fare: { unit_0: 300, unit_48: 290 } } } : s,
+        ),
+      },
+      0,
+    );
+    const bus = withFare.segments.find((s) => s.kind === 'transit');
+    expect(bus?.kind === 'transit' && bus.fare?.value).toBe(290);
+  });
+
   it('builds journey legs so the token can walk and ride along the route', () => {
     const coords = [
       { lat: 34.69, lon: 135.76 },
