@@ -35,6 +35,8 @@ export function TransitPage() {
   const favorites = useFavorites();
   const lastRun = useRef<string>('');
   const plans = transit.plans;
+  /** 自動検索の effect から常に最新の run を呼ぶため（run は毎描画で作り直されるので依存に入れない） */
+  const runRef = useRef<(q: RouteQuery) => Promise<void>>(async () => {});
 
   const run = useCallback(
     async (q: RouteQuery) => {
@@ -54,6 +56,7 @@ export function TransitPage() {
     },
     [transit, history],
   );
+  runRef.current = run;
 
   // URL に条件が揃っていれば自動検索（共有リンク・履歴からの遷移）。
   // Places ライブラリの読み込みを待つが、Google Maps が読み込めない環境でも外部サービスへの引き渡しはできるよう、数秒で諦めて実行する。
@@ -69,15 +72,16 @@ export function TransitPage() {
       setTime(q.time);
       setTimeType(q.timeType ?? 'departure');
       setFilter(q.filter ?? 'all');
-      void run({ from: q.from!, to: q.to!, mode: 'TRANSIT', time: q.time, timeType: q.timeType ?? 'departure', filter: q.filter ?? 'all' });
+      void runRef.current({ from: q.from!, to: q.to!, mode: 'TRANSIT', time: q.time, timeType: q.timeType ?? 'departure', filter: q.filter ?? 'all' });
     };
     if (transit.ready) {
       start();
       return;
     }
+    // 描画のたびにタイマーが振り出しに戻らないよう、依存は URL と ready だけにする
     const timer = window.setTimeout(start, 4000);
     return () => window.clearTimeout(timer);
-  }, [params, transit.ready, run]);
+  }, [params, transit.ready]);
 
   /** override は日時指定シートの「この条件で検索」用（state の更新を待たずに新しい日時で検索する） */
   const submit = (override?: { time: string | undefined; timeType: TimeType }) => {

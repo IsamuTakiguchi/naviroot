@@ -11,7 +11,6 @@ interface Props {
   onLocate?: () => void;
   locating?: boolean;
   autoFocus?: boolean;
-  onSubmit?: () => void;
   /** 候補の優先地域（現在地など） */
   bias?: LatLng;
 }
@@ -28,8 +27,9 @@ const DEBOUNCE_MS = 250;
 /**
  * Places API (New) の AutocompleteSuggestion を使った入力欄。
  * 候補を選ぶと Place.fetchFields で座標・住所を取得する。自由入力（Enter）も Place として扱う。
+ * Enter は地点の確定だけで、検索は「検索」ボタンでのみ実行する（NAVITIME と同じ）。
  */
-export function PlaceInput({ value, placeholder, onChange, onLocate, locating, autoFocus, onSubmit, bias }: Props) {
+export function PlaceInput({ value, placeholder, onChange, onLocate, locating, autoFocus, bias }: Props) {
   const places = useMapsLibrary('places');
   const inputRef = useRef<HTMLInputElement>(null);
   const wrapRef = useRef<HTMLDivElement>(null);
@@ -151,7 +151,7 @@ export function PlaceInput({ value, placeholder, onChange, onLocate, locating, a
           placeholder={placeholder}
           autoFocus={autoFocus}
           autoComplete="off"
-          enterKeyHint="search"
+          enterKeyHint="done"
           role="combobox"
           aria-expanded={open}
           aria-autocomplete="list"
@@ -164,6 +164,8 @@ export function PlaceInput({ value, placeholder, onChange, onLocate, locating, a
             commitText();
           }}
           onKeyDown={(e) => {
+            // 日本語入力の変換確定（Enter）は地点の確定として扱わない
+            if (e.nativeEvent.isComposing || e.keyCode === 229) return;
             if (open && e.key === 'ArrowDown') {
               e.preventDefault();
               setActive((i) => Math.min(i + 1, suggestions.length - 1));
@@ -174,13 +176,15 @@ export function PlaceInput({ value, placeholder, onChange, onLocate, locating, a
               setOpen(false);
             } else if (e.key === 'Enter') {
               e.preventDefault();
-              if (open && active >= 0 && suggestions[active]) {
-                void choose(suggestions[active]);
-                return;
+              // 候補があれば選択中（無ければ先頭）を採用、無ければ入力文字をそのまま地点にする。
+              // 検索は始めない（キーボードを閉じるだけ）
+              const pick = open ? (suggestions[active] ?? suggestions[0]) : undefined;
+              if (pick) void choose(pick);
+              else {
+                setOpen(false);
+                commitText();
               }
-              setOpen(false);
-              commitText();
-              onSubmit?.();
+              inputRef.current?.blur();
             }
           }}
         />

@@ -101,9 +101,6 @@ export function RouteForm(props: Props) {
           onLocate={() => useCurrent('to')}
           locating={locatingFor === 'to'}
           bias={geo.position}
-          onSubmit={() => {
-            if (canSubmit) onSubmit();
-          }}
         />
       </div>
       {geo.error && <div className="alert error">{geo.error}</div>}
