@@ -217,7 +217,7 @@ code {
 .app-header,
 .bottom-nav,
 .suggestions,
-.nt-row,
+.nv-list,
 .map-fab,
 .map-page .panel,
 .alert {
@@ -236,7 +236,7 @@ code {
   .app-header,
   .bottom-nav,
   .suggestions,
-  .nt-row,
+  .nv-list,
   .map-fab,
   .map-page .panel,
   .alert {
@@ -250,7 +250,7 @@ code {
   .app-header,
   .bottom-nav,
   .suggestions,
-  .nt-row,
+  .nv-list,
   .map-fab,
   .map-page .panel,
   .alert {
@@ -286,7 +286,6 @@ code {
   }
 
   .badge.on::after,
-  .nt-no::after,
   .btn.primary::after {
     display: none;
   }
@@ -1137,19 +1136,8 @@ select {
   padding: 10px 0 12px;
 }
 
-.nt-row.nt-skeleton {
-  cursor: default;
-  align-items: center;
-  padding: 14px 14px 14px 0;
-}
-
-.nt-skeleton .nt-body {
-  gap: 8px;
-}
-
 .sk-bar,
-.sk-badge,
-.nt-no.sk {
+.sk-badge {
   background-image: linear-gradient(
     100deg,
     var(--field) 30%,
@@ -1185,10 +1173,6 @@ select {
   border-radius: 7px;
 }
 
-.nt-no.sk {
-  background-color: var(--field);
-}
-
 /* ---------- 乗換案内 一覧（NAVITIME 風） ---------- */
 .nt-list {
   list-style: none;
@@ -1199,143 +1183,250 @@ select {
   gap: 10px;
 }
 
-/* 候補が下から順に滑り込む。.nt-row は backdrop-filter を持つので transform は li 側に置く */
+/* 候補が下から順に滑り込む（transform は li 側に置く） */
 .nt-item {
   animation: rise 0.45s cubic-bezier(0.2, 0.8, 0.25, 1) both;
   animation-delay: var(--row-delay, 0ms);
 }
 
-.nt-row {
-  display: grid;
-  grid-template-columns: 34px minmax(0, 1fr) auto;
-  align-items: stretch;
-  gap: 12px;
-  width: 100%;
-  text-align: left;
-  padding: 0 14px 0 0;
-  cursor: pointer;
-  color: var(--text);
-  border-radius: var(--radius-lg);
-  overflow: hidden;
-  background: var(--glass);
+/* ---------- 検索結果の一覧（NAVITIME 風） ---------- */
+.nv-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  background: var(--glass-strong);
   -webkit-backdrop-filter: blur(28px) saturate(180%);
   backdrop-filter: blur(28px) saturate(180%);
   border: 1px solid var(--glass-border);
-  box-shadow:
-    var(--glass-shadow-sm),
-    inset 0 1px 0 var(--glass-edge);
-  transition:
-    transform 0.15s ease,
-    box-shadow 0.15s ease,
-    border-color 0.15s ease;
-}
-
-.nt-row:active {
-  transform: scale(0.985);
-}
-
-.nt-row.selected {
-  border-color: var(--nt-green);
-  background: var(--nt-green-soft);
-}
-
-.nt-no {
-  position: relative;
+  border-radius: var(--radius-lg);
   overflow: hidden;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: linear-gradient(160deg, var(--nt-green), var(--nt-green-dark));
-  color: #fff;
-  font-weight: 800;
-  font-size: 15px;
-  align-self: stretch;
+  box-shadow: var(--glass-shadow-sm);
 }
 
-/* 番号タブを光沢がゆっくり横切る */
-.nt-no::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(105deg, transparent 35%, rgba(255, 255, 255, 0.55) 50%, transparent 65%);
-  transform: translateX(-120%);
-  animation: shine 3.6s ease-in-out infinite;
-  animation-delay: calc(var(--row-delay, 0ms) + 500ms);
+.nv-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  width: 100%;
+  padding: 12px 10px 12px 14px;
+  border: 0;
+  border-bottom: 1px solid var(--nv-sep);
+  background: transparent;
+  color: var(--text);
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.15s ease;
 }
 
-.nt-row.selected .nt-no {
-  background: var(--nt-green-dark);
+.nv-list li:last-child .nv-row {
+  border-bottom: 0;
 }
 
-.nt-body {
+.nv-row:active {
+  background: var(--color-primary-soft);
+}
+
+.nv-row.selected {
+  background: var(--color-primary-soft);
+}
+
+.nv-row-main {
   display: flex;
   flex-direction: column;
-  gap: 2px;
-  padding: 12px 0;
+  gap: 4px;
   min-width: 0;
 }
 
-.nt-times {
-  font-size: 20px;
+.nv-row-times {
+  font-size: 30px;
   font-weight: 800;
-  letter-spacing: 0.01em;
+  letter-spacing: -0.02em;
   font-variant-numeric: tabular-nums;
+  line-height: 1.15;
 }
 
-.nt-times .arrow {
-  color: var(--muted);
-  font-weight: 600;
+.nv-row-times .arrow {
+  font-weight: 400;
+  font-size: 26px;
   margin: 0 2px;
 }
 
-.nt-dur {
-  font-size: 13px;
-  font-weight: 600;
+.nv-row-meta {
+  font-size: 16px;
   color: var(--muted);
+}
+
+/* 発 -[路線]- 着 */
+.nv-chips {
+  display: flex;
+  align-items: center;
+  margin-top: 4px;
+}
+
+.nv-chip-wrap {
+  display: inline-flex;
+  align-items: center;
+  position: relative;
+}
+
+.nv-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 22px;
+  min-width: 22px;
+  padding: 0 4px;
+  border-radius: 4px;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.nv-chip.end {
+  background: #8a8f99;
+}
+
+.nv-chip.line {
+  width: 26px;
+}
+
+.nv-dash {
+  width: 10px;
+  height: 3px;
+  background: var(--nv-arr);
+  opacity: 0.85;
+}
+
+.nv-chip-paid {
+  position: absolute;
+  left: 50%;
+  top: 100%;
+  transform: translateX(-50%);
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--nv-arr);
+  line-height: 1;
+  margin-top: 1px;
   white-space: nowrap;
 }
 
-.nt-meta {
-  font-size: 13px;
-  color: var(--muted);
+.nv-chips:has(.nv-chip-paid) {
+  margin-bottom: 10px;
 }
 
-/* 特急料金などが必要な経路（NAVITIME の「有料」） */
-.nt-paid {
-  display: inline-block;
-  margin-left: 8px;
-  padding: 0 5px;
-  border-radius: 3px;
-  border: 1px solid var(--nv-arr);
-  color: var(--nv-arr);
-  font-size: 11px;
-  font-weight: 700;
-  line-height: 16px;
-  vertical-align: 1px;
-}
-
-.nt-icons {
+.nv-row-side {
   display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 2px;
-  margin-top: 4px;
-  color: var(--muted);
+  flex-direction: column;
+  align-items: flex-end;
+  justify-content: space-between;
+  align-self: stretch;
 }
 
-.nt-icon {
+.nv-row-chev {
+  color: var(--muted);
+  opacity: 0.6;
+}
+
+.nv-row.nv-skeleton {
+  cursor: default;
+  align-items: center;
+}
+
+.nv-skeleton .nv-row-main {
+  gap: 8px;
+}
+
+/* 一覧の上: 日時チップ・1本前/いま発/1本後・並び順タブ */
+.nv-cond {
+  margin: 4px 0 10px;
+}
+
+.nv-cond-chip {
   display: inline-flex;
   align-items: center;
-  gap: 2px;
+  gap: 8px;
+  min-height: 40px;
+  padding: 0 14px;
+  border: 1px solid var(--field-border);
+  border-radius: 8px;
+  background: var(--glass-strong);
+  color: var(--text);
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
 }
 
-.nt-icon .sep {
-  display: inline-block;
-  width: 10px;
-  height: 2px;
-  border-radius: 1px;
-  background: var(--line);
-  margin-right: 2px;
+.nv-slide-row {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.nv-slide-row button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  min-height: 44px;
+  padding: 0 12px;
+  border: 1px solid var(--field-border);
+  border-radius: 8px;
+  background: var(--glass-strong);
+  color: var(--text);
+  font-size: 15px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.nv-slide-row button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.nv-slide-row button:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+.nv-slide-note {
+  margin-top: 8px;
+  font-size: 13px;
+  color: var(--muted);
+  text-align: center;
+}
+
+.nv-sort {
+  display: flex;
+  gap: 4px;
+  margin-top: 12px;
+  padding-bottom: 8px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  border-bottom: 3px solid var(--nt-green);
+}
+
+.nv-sort::-webkit-scrollbar {
+  display: none;
+}
+
+.nv-sort button {
+  flex: 0 0 auto;
+  min-height: 40px;
+  padding: 0 18px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 16px;
+  cursor: pointer;
+  transition: background 0.2s ease, color 0.2s ease;
+}
+
+.nv-sort button.active {
+  background: var(--nt-green);
+  color: #fff;
+  font-weight: 700;
+  animation: pop 0.3s cubic-bezier(0.2, 1.4, 0.4, 1);
 }
 
 .nt-foot {
@@ -1735,9 +1826,6 @@ select {
    タブレット / PC
    ========================================================= */
 @media (max-width: 420px) {
-  .nt-times {
-    font-size: 18px;
-  }
 
   .nt-detail-times {
     font-size: 21px;
@@ -1745,12 +1833,6 @@ select {
 }
 
 @media (hover: hover) {
-  .nt-row:hover {
-    transform: translateY(-2px);
-    box-shadow:
-      var(--glass-shadow),
-      inset 0 1px 0 var(--glass-edge);
-  }
   .btn:not(:disabled):hover {
     box-shadow:
       0 6px 16px rgba(16, 90, 50, 0.14),

@@ -14,18 +14,16 @@ export function TransitLoading({ rows = 3, label = '経路を検索していま�
         </span>
       </div>
       <div className="nt-loading-label">{label}</div>
-      <ol className="nt-list" aria-hidden>
+      <ol className="nv-list" aria-hidden>
         {Array.from({ length: rows }, (_, i) => (
           <li key={i} className="nt-item" style={{ ['--row-delay' as string]: `${i * 90}ms` }}>
-            <div className="nt-row nt-skeleton">
-              <span className="nt-no sk" />
-              <span className="nt-body">
+            <div className="nv-row nv-skeleton">
+              <span className="nv-row-main">
                 <span className="sk-bar w-60" />
                 <span className="sk-bar w-40" />
                 <span className="sk-bar w-30" />
               </span>
               <span className="badges">
-                <span className="sk-badge" />
                 <span className="sk-badge" />
                 <span className="sk-badge" />
               </span>

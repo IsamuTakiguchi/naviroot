@@ -1,5 +1,5 @@
 import type { TransitPlan, PlanBadge, PlanSegment } from '../types';
-import { formatDuration, formatFare, formatTime, VEHICLE_ICON } from '../lib/format';
+import { formatDuration, formatTime, formatYen, VEHICLE_ICON } from '../lib/format';
 import { Icon, type IconName } from './Icon';
 
 const BADGE_LABEL: Record<PlanBadge, string> = { fastest: '早', cheapest: '安', easiest: '楽' };
@@ -36,6 +36,29 @@ export function segmentIcons(segments: PlanSegment[]): IconName[] {
   return out;
 }
 
+/** 「発 -[A]- 着」のように、乗る路線を路線色のチップで並べる（NAVITIME 風） */
+function LineChips({ plan }: { plan: TransitPlan }) {
+  const rides = plan.segments.filter((s) => s.kind === 'transit');
+  return (
+    <span className="nv-chips" aria-hidden>
+      <span className="nv-chip end">発</span>
+      {rides.map((s, i) =>
+        s.kind === 'transit' ? (
+          <span key={i} className="nv-chip-wrap">
+            <span className="nv-dash" />
+            <span className="nv-chip line" style={{ background: s.lineColor ?? 'var(--accent)' }} title={s.lineName}>
+              <Icon name={VEHICLE_ICON[s.vehicle]} size={14} />
+            </span>
+            {s.surcharge ? <span className="nv-chip-paid">有料</span> : null}
+          </span>
+        ) : null,
+      )}
+      <span className="nv-dash" />
+      <span className="nv-chip end">着</span>
+    </span>
+  );
+}
+
 interface Props {
   plans: TransitPlan[];
   selectedId?: string;
@@ -44,41 +67,32 @@ interface Props {
 
 export function TransitResultList({ plans, selectedId, onSelect }: Props) {
   return (
-    <ol className="nt-list">
-      {plans.map((p, i) => {
-        const icons = segmentIcons(p.segments);
-        return (
-          <li key={p.id} className="nt-item" style={{ ['--i' as string]: i, ['--row-delay' as string]: `${i * 70}ms` }}>
-            <button
-              type="button"
-              className={`nt-row ${selectedId === p.id ? 'selected' : ''}`}
-              onClick={() => onSelect(p)}
-              aria-current={selectedId === p.id}
-            >
-              <span className="nt-no">{i + 1}</span>
-              <span className="nt-body">
-                <span className="nt-times">
-                  {formatTime(p.departureTime)} <span className="arrow">→</span> {formatTime(p.arrivalTime)}
-                  <span className="nt-dur">（{formatDuration(p.durationSec)}）</span>
-                </span>
-                <span className="nt-meta">
-                  乗換{p.transfers}回{p.fare && <> 　{formatFare(p.fare.value, p.fare.currency)}</>}
-                  {p.surcharge ? <span className="nt-paid">有料</span> : null}
-                </span>
-                <span className="nt-icons">
-                  {icons.map((ic, j) => (
-                    <span key={j} className="nt-icon">
-                      {j > 0 && <span className="sep" aria-hidden />}
-                      <Icon name={ic} size={17} />
-                    </span>
-                  ))}
-                </span>
+    <ol className="nv-list">
+      {plans.map((p, i) => (
+        <li key={p.id} className="nt-item" style={{ ['--i' as string]: i, ['--row-delay' as string]: `${i * 70}ms` }}>
+          <button
+            type="button"
+            className={`nv-row ${selectedId === p.id ? 'selected' : ''}`}
+            onClick={() => onSelect(p)}
+            aria-current={selectedId === p.id}
+          >
+            <span className="nv-row-main">
+              <span className="nv-row-times">
+                {formatTime(p.departureTime)} <span className="arrow">⇒</span> {formatTime(p.arrivalTime)}
               </span>
-              <Badges badges={p.badges} showAll />
-            </button>
-          </li>
-        );
-      })}
+              <span className="nv-row-meta">
+                {formatDuration(p.durationSec)}
+                {p.fare && <> {formatYen(p.fare.value)}</>} 乗換{p.transfers}回
+              </span>
+              <LineChips plan={p} />
+            </span>
+            <span className="nv-row-side">
+              <Badges badges={p.badges} />
+              <Icon name="chevron-right" size={22} className="nv-row-chev" />
+            </span>
+          </button>
+        </li>
+      ))}
     </ol>
   );
 }

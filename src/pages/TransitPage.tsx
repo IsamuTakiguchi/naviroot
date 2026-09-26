@@ -14,10 +14,12 @@ import { useTransitSearch } from '../hooks/useTransitSearch';
 import { useHistory } from '../hooks/useHistory';
 import { useFavorites } from '../hooks/useFavorites';
 import { paramsToQuery, queryToParams } from '../lib/query';
-import { formatDateJa, formatTime } from '../lib/format';
-import { FILTER_LABEL } from '../lib/navitime';
+import { formatTime } from '../lib/format';
 import { NAVITIME_FREE_LIMIT, readNavitimeUsage } from '../config';
 import { Icon } from '../components/Icon';
+import { TimeSheet } from '../components/TimeSheet';
+import { PLAN_SORTS, sortPlans, type PlanSort } from '../lib/sortPlans';
+import { formatDateLong } from '../lib/format';
 
 export function TransitPage() {
   const [params, setParams] = useSearchParams();
@@ -30,6 +32,8 @@ export function TransitPage() {
   const [filter, setFilter] = useState<TransitFilter>(initial.filter ?? 'all');
   const [selected, setSelected] = useState<TransitPlan | undefined>();
   const [showMap, setShowMap] = useState(false);
+  const [sort, setSort] = useState<PlanSort>('recommended');
+  const [condOpen, setCondOpen] = useState(false);
   const transit = useTransitSearch();
   const history = useHistory();
   const favorites = useFavorites();
@@ -42,6 +46,7 @@ export function TransitPage() {
     async (q: RouteQuery) => {
       setSelected(undefined);
       setShowMap(false);
+      setSort('recommended');
       let resolvedFrom = q.from;
       let resolvedTo = q.to;
       const result = await transit.search(q, {
@@ -113,7 +118,14 @@ export function TransitPage() {
   const isFav = from && to ? favorites.hasRoute(from, to, 'TRANSIT') : false;
   const showExternal = !!(from && to) && !!transit.error;
 
-  const mapPlan = selected ?? plans[0];
+  const sorted = useMemo(() => sortPlans(plans, sort), [plans, sort]);
+  const mapPlan = selected ?? sorted[0];
+  /** 「いま発で再検索」: 現在時刻・出発で検索し直す */
+  const searchNow = () => {
+    setTime(undefined);
+    setTimeType('departure');
+    submit({ time: undefined, timeType: 'departure' });
+  };
 
   return (
     <div className="page transit-page">
@@ -173,17 +185,51 @@ export function TransitPage() {
 
       {!transit.loading && plans.length > 0 && from && to && (
         <>
-          <div className="section-title">
-            {formatDateJa(baseDate)}{' '}
-            {timeType === 'first' ? '始発' : timeType === 'last' ? '終電' : `${formatTime(baseDate)} ${timeType === 'arrival' ? '到着' : '出発'}`}
-            ・ {FILTER_LABEL[filter]} ・ {plans.length}件
-            {plans.length > 1 && (
-              <>
-                {' '}
-                （{formatTime(plans[0].departureTime)}〜{formatTime(plans[plans.length - 1].departureTime)} 発）
-              </>
-            )}
-          </div>
+          {!selected && (
+            <div className="nv-cond">
+              <button type="button" className="nv-cond-chip" onClick={() => setCondOpen(true)} aria-haspopup="dialog">
+                <Icon name="clock" size={18} />
+                {formatDateLong(baseDate)}{' '}
+                {timeType === 'first' ? '始発' : timeType === 'last' ? '終電' : `${formatTime(baseDate)} ${timeType === 'arrival' ? '到着' : '出発'}`}
+              </button>
+              <TimeSheet
+                open={condOpen}
+                time={time}
+                timeType={timeType}
+                onCancel={() => setCondOpen(false)}
+                onDone={(t, tt) => {
+                  setTime(t);
+                  setTimeType(tt);
+                  setCondOpen(false);
+                }}
+                onSearch={(t, tt) => {
+                  setTime(t);
+                  setTimeType(tt);
+                  setCondOpen(false);
+                  submit({ time: t, timeType: tt });
+                }}
+              />
+              <div className="nv-slide-row">
+                <button type="button" disabled={timeType === 'first' || !!transit.sliding} onClick={() => void transit.slide('prev')}>
+                  <Icon name="chevron-left" size={18} /> {transit.sliding === 'prev' ? '探しています…' : '1本前'}
+                </button>
+                <button type="button" onClick={searchNow}>
+                  いま発で再検索
+                </button>
+                <button type="button" disabled={timeType === 'last' || !!transit.sliding} onClick={() => void transit.slide('next')}>
+                  {transit.sliding === 'next' ? '探しています…' : '1本後'} <Icon name="chevron-right" size={18} />
+                </button>
+              </div>
+              {transit.slideNote && <div className="nv-slide-note">{transit.slideNote}</div>}
+              <div className="nv-sort" role="tablist" aria-label="並び順">
+                {PLAN_SORTS.map((o) => (
+                  <button key={o.key} type="button" role="tab" aria-selected={sort === o.key} className={sort === o.key ? 'active' : ''} onClick={() => setSort(o.key)}>
+                    {o.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
 
           {selected ? (
             <TransitDetail
@@ -234,30 +280,7 @@ export function TransitPage() {
             />
           ) : (
             <>
-              {timeType !== 'first' && (
-                <button
-                  type="button"
-                  className="btn small block"
-                  style={{ marginBottom: 10 }}
-                  disabled={!!transit.sliding}
-                  onClick={() => void transit.slide('prev')}
-                >
-                  <Icon name="chevron-left" size={16} /> {transit.sliding === 'prev' ? '前の便を探しています…' : '1本前'}
-                </button>
-              )}
-              <TransitResultList plans={plans} onSelect={openMap} />
-              {timeType !== 'last' && (
-                <button
-                  type="button"
-                  className="btn small block"
-                  style={{ marginTop: 10 }}
-                  disabled={!!transit.sliding}
-                  onClick={() => void transit.slide('next')}
-                >
-                  {transit.sliding === 'next' ? '次の便を探しています…' : '1本後'} <Icon name="chevron-right" size={16} />
-                </button>
-              )}
-              {transit.slideNote && <div className="alert info">{transit.slideNote}</div>}
+              <TransitResultList plans={sorted} onSelect={openMap} />
               {!transit.moreLoaded && (
                 <button
                   type="button"
@@ -270,7 +293,7 @@ export function TransitPage() {
                     '別の経路を探しています…'
                   ) : (
                     <>
-                      <Icon name="search" size={16} /> 別の経路も探す（安い・乗換が少ない・歩きが少ない順）
+                      <Icon name="search" size={16} /> 別の経路も探す
                     </>
                   )}
                 </button>
