@@ -108,7 +108,8 @@ export function TransitPage() {
     setShowMap(true);
   };
 
-  const baseDate = time ? new Date(time) : new Date();
+  // 見出しの時刻は実際に検索に使った時刻（「現在時刻」のときも検索した瞬間で固定する）
+  const baseDate = transit.searchTime ? new Date(transit.searchTime) : time ? new Date(time) : new Date();
   const isFav = from && to ? favorites.hasRoute(from, to, 'TRANSIT') : false;
   const showExternal = !!(from && to) && !!transit.error;
 
@@ -279,7 +280,7 @@ export function TransitPage() {
           )}
 
           <p className="nt-foot">
-            乗換データ: NAVITIME API ・ API 応答 {transit.firstBatch} 件 × {transit.apiCalls} 回 ・ 今月の利用{' '}
+            乗換データ: NAVITIME API{transit.fromStations ? '（駅コード検索）' : ''} ・ API 応答 {transit.firstBatch} 件 × {transit.apiCalls} 回 ・ 今月の利用{' '}
             {readNavitimeUsage().count} / {NAVITIME_FREE_LIMIT} 回
           </p>
         </>

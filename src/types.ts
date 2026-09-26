@@ -60,8 +60,10 @@ export interface TransitSegment {
   durationSec: number;
   /** 乗車区間の距離（m） */
   distanceM?: number;
-  /** 乗車区間の運賃（IC があれば IC） */
+  /** 乗車区間の運賃（IC があれば IC。特急料金などの追加料金込み） */
   fare?: { value: number; currency: string; text: string };
+  /** 特急料金などの追加料金（運賃に含めた額） */
+  surcharge?: number;
 }
 
 export type PlanSegment = WalkSegment | TransitSegment;
@@ -76,6 +78,11 @@ export interface TransitPlan {
   walkSec: number;
   /** 全体の距離（m） */
   distanceM?: number;
+  /** 特急料金などの追加料金の合計（fare.value に含めた額。0 より大きければ NAVITIME の「有料」） */
+  surcharge?: number;
+  /** 最初に乗る駅・最後に降りる駅の NAVITIME ノード（駅コードでの再検索に使う） */
+  boardNode?: { id: string; name: string };
+  alightNode?: { id: string; name: string };
   segments: PlanSegment[];
   summary: string;
   bounds?: google.maps.LatLngBounds;

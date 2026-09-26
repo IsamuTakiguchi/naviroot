@@ -137,9 +137,21 @@ export const EXTRA_ORDERS: NavitimeOrder[] = ['fare', 'transit', 'walk_distance'
 /** 1 回の検索で取得する候補数（NAVITIME の上限） */
 export const NAVITIME_LIMIT = 10;
 
+/** 地点の指定: 緯度経度、または NAVITIME の駅コード（ノード ID。例 '00006589'） */
+export type NavitimeLocation = LatLng | string;
+
+export function locationParam(loc: NavitimeLocation): string {
+  return typeof loc === 'string' ? loc : `${loc.lat},${loc.lng}`;
+}
+
+/** パラメータが駅コード（ノード ID）で指定されているか */
+export function isNodeParam(value: string | undefined): boolean {
+  return !!value && !value.includes(',');
+}
+
 export function buildNavitimeParams(
-  from: LatLng,
-  to: LatLng,
+  from: NavitimeLocation,
+  to: NavitimeLocation,
   timeType: TimeType,
   time?: string,
   limit = NAVITIME_LIMIT,
@@ -147,8 +159,8 @@ export function buildNavitimeParams(
   order?: NavitimeOrder,
 ): Record<string, string> {
   const params: Record<string, string> = {
-    start: `${from.lat},${from.lng}`,
-    goal: `${to.lat},${to.lng}`,
+    start: locationParam(from),
+    goal: locationParam(to),
     limit: String(limit),
     datum: 'wgs84',
     coord_unit: 'degree',
@@ -321,10 +333,40 @@ const MOVE_LABEL: Record<string, string> = {
   ferry: 'フェリー',
 };
 
-function fareOf(f: NavitimeFare | undefined): TransitPlan['fare'] {
+/** 運賃（IC があれば IC、無ければきっぷ） */
+function baseFare(f: NavitimeFare | undefined): number | undefined {
   if (!f) return undefined;
   const v = f.unit_48 ?? f.unit_0;
-  if (v == null || !Number.isFinite(v)) return undefined;
+  return v != null && Number.isFinite(v) ? v : undefined;
+}
+
+/** 運賃そのものの unit（大人／こどもの きっぷ・IC） */
+const BASE_UNITS = new Set(['unit_0', 'unit_1', 'unit_48', 'unit_49']);
+/** 特急・座席などの「料金」を表す unit ID（NAVITIME の unit 定義。応答の unit 表が無いときの既定） */
+const SURCHARGE_UNITS = new Set(['unit_128', 'unit_130', 'unit_132', 'unit_134', 'unit_136', 'unit_138', 'unit_140', 'unit_142']);
+const CHILD = /こども|子供|小児|幼児/;
+
+/**
+ * 特急料金などの追加料金。NAVITIME アプリの「有料」ルートは運賃にこれを足して表示する。
+ * 応答の unit 表（unit ID → 名前）があれば「料金」と付く大人向けの unit を、無ければ既知の料金 unit を使い、
+ * 複数あれば安い方（自由席など）を採る。
+ */
+export function surchargeOf(f: NavitimeFare | undefined, units?: Record<string, string>): number {
+  if (!f) return 0;
+  const candidates: number[] = [];
+  for (const [k, v] of Object.entries(f)) {
+    if (BASE_UNITS.has(k) || typeof v !== 'number' || !(v > 0)) continue;
+    const label = units?.[k];
+    const ok = label ? /料金/.test(label) && !CHILD.test(label) : SURCHARGE_UNITS.has(k);
+    if (ok) candidates.push(v);
+  }
+  return candidates.length ? Math.min(...candidates) : 0;
+}
+
+function fareOf(f: NavitimeFare | undefined, surcharge = 0): TransitPlan['fare'] {
+  const base = baseFare(f);
+  if (base == null) return undefined;
+  const v = base + surcharge;
   return { value: v, currency: 'JPY', text: formatFare(v, 'JPY') };
 }
 
@@ -400,9 +442,12 @@ export function legBoundaries(sections: NavitimeSection[] | undefined): LatLng[]
   return out;
 }
 
-export function itemToPlan(item: NavitimeItem, index: number, now: Date = new Date()): TransitPlan {
+export function itemToPlan(item: NavitimeItem, index: number, now: Date = new Date(), units?: Record<string, string>): TransitPlan {
   const segments: PlanSegment[] = [];
   const sections = item.sections ?? [];
+  let boardNode: TransitPlan['boardNode'];
+  let alightNode: TransitPlan['alightNode'];
+  let surchargeTotal = 0;
   for (let i = 0; i < sections.length; i++) {
     const s = sections[i];
     if (s.type !== 'move') continue;
@@ -410,6 +455,11 @@ export function itemToPlan(item: NavitimeItem, index: number, now: Date = new Da
     const next = sections[i + 1];
     const prevName = prev?.type === 'point' ? (prev.name ?? '') : '';
     const nextName = next?.type === 'point' ? (next.name ?? '') : '';
+    if (s.move !== 'walk') {
+      // 最初に乗る駅と最後に降りる駅のノードを控える（駅コードでの再検索用）
+      if (!boardNode && prev?.type === 'point' && prev.node_id && prevName) boardNode = { id: prev.node_id, name: prevName };
+      if (next?.type === 'point' && next.node_id && nextName) alightNode = { id: next.node_id, name: nextName };
+    }
     const durationSec = Math.round((s.time ?? 0) * 60);
     if (s.move === 'walk') {
       const walk: WalkSegment = { kind: 'walk', durationSec, distanceM: s.distance ?? 0, instruction: '徒歩' };
@@ -435,8 +485,13 @@ export function itemToPlan(item: NavitimeItem, index: number, now: Date = new Da
       numStops: 0,
       durationSec,
       distanceM: s.distance,
-      fare: fareOf(t?.fare),
     };
+    const surcharge = surchargeOf(t?.fare, units);
+    if (surcharge > 0) {
+      seg.surcharge = surcharge;
+      surchargeTotal += surcharge;
+    }
+    seg.fare = fareOf(t?.fare, surcharge);
     segments.push(seg);
   }
   const merged = mergeWalks(segments);
@@ -451,9 +506,12 @@ export function itemToPlan(item: NavitimeItem, index: number, now: Date = new Da
     arrivalTime: parseDate(move.to_time, new Date(now.getTime() + (move.time ?? 0) * 60_000)),
     durationSec: Math.round((move.time ?? 0) * 60),
     transfers: move.transit_count ?? Math.max(0, transit.length - 1),
-    fare: fareOf(move.fare),
+    fare: fareOf(move.fare, surchargeTotal),
+    surcharge: surchargeTotal > 0 ? surchargeTotal : undefined,
     walkSec: merged.filter((x) => x.kind === 'walk').reduce((a, x) => a + x.durationSec, 0),
     distanceM: move.distance,
+    boardNode,
+    alightNode,
     segments: merged,
     summary: transit.map((x) => x.lineName).join(' → ') || '徒歩',
     bounds: boundsOf(path),
@@ -464,8 +522,15 @@ export function itemToPlan(item: NavitimeItem, index: number, now: Date = new Da
   };
 }
 
+/**
+ * 同じ経路かどうかの判定キー。乗る列車（路線・乗車駅・発時刻）と最後の降車時刻で見る。
+ * 駅までの徒歩の有無や出発時刻の取り方が違っても、同じ列車なら同じ候補として扱う。
+ */
 export function planKey(p: TransitPlan): string {
-  return `${p.departureTime.getTime()}|${p.arrivalTime.getTime()}|${p.summary}|${p.transfers}`;
+  const rides = p.segments.filter((s): s is TransitSegment => s.kind === 'transit');
+  if (rides.length === 0) return `walk|${p.departureTime.getTime()}|${p.arrivalTime.getTime()}|${p.summary}`;
+  const trains = rides.map((r) => `${r.departureTime.getTime()}|${r.departureStop}|${r.lineName}`).join('>');
+  return `${trains}|${rides[rides.length - 1].arrivalTime.getTime()}`;
 }
 
 /** 同じ経路（出発・到着・路線構成が同じ）を除き、出発時刻順に並べてバッジを付け直す */
@@ -486,5 +551,5 @@ export function mergePlans(lists: TransitPlan[][]): TransitPlan[] {
 
 export function navitimeToPlans(json: NavitimeResponse, now: Date = new Date()): TransitPlan[] {
   const items = json.items ?? [];
-  return mergePlans([items.map((it, i) => itemToPlan(it, i, now))]);
+  return mergePlans([items.map((it, i) => itemToPlan(it, i, now, json.unit))]);
 }

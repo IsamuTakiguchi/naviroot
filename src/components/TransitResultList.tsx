@@ -63,6 +63,7 @@ export function TransitResultList({ plans, selectedId, onSelect }: Props) {
                 </span>
                 <span className="nt-meta">
                   乗換{p.transfers}回{p.fare && <> 　{formatFare(p.fare.value, p.fare.currency)}</>}
+                  {p.surcharge ? <span className="nt-paid">有料</span> : null}
                 </span>
                 <span className="nt-icons">
                   {icons.map((ic, j) => (

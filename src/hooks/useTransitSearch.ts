@@ -4,10 +4,8 @@ import type { Place, RouteQuery, TransitPlan } from '../types';
 import { getNavitimeKey } from '../config';
 import { resolvePair } from '../lib/places';
 import {
-  buildNavitimeParams,
   EXTRA_ORDERS,
   mergePlans,
-  NAVITIME_LIMIT,
   NAVITIME_MESSAGES,
   NavitimeError,
   requestNavitimePlans,
@@ -15,7 +13,7 @@ import {
 } from '../lib/navitime';
 import { collectFollowups, shiftParams, type SlideDirection } from '../lib/followups';
 import { trimStationWalks } from '../lib/stationWalk';
-import { assignBadges } from '../lib/transit';
+import { searchFromStations } from '../lib/transitSearch';
 import { useSettings } from './useSettings';
 
 /** 後続便の自動取得: この件数に満たなければ、最大この回数まで時刻をずらして再検索 */
@@ -42,6 +40,10 @@ export interface TransitSearchState {
   apiCalls: number;
   /** 最初の応答に含まれていた候補数（診断用） */
   firstBatch: number;
+  /** 実際に検索に使った時刻（'YYYY-MM-DDTHH:mm:ss'。見出しの表示用） */
+  searchTime?: string;
+  /** NAVITIME アプリと同じ「駅コード」で検索できたか */
+  fromStations?: boolean;
 }
 
 const EMPTY: TransitSearchState = { loading: false, plans: [], apiCalls: 0, firstBatch: 0 };
@@ -57,9 +59,10 @@ interface LastSearch {
  * NAVITIME から候補を取り、駅を指定したときの構内徒歩を外してからバッジを付け直す。
  * 最初の検索・後続便・別の経路・前後の便のすべてでこれを通す。
  */
-async function fetchPlans(last: LastSearch, params: Record<string, string> = last.params): Promise<TransitPlan[]> {
+async function fetchPlans(last: Pick<LastSearch, 'key' | 'fromName' | 'toName'>, params: Record<string, string>): Promise<TransitPlan[]> {
   const plans = await requestNavitimePlans(last.key, params);
-  return assignBadges(plans.map((p) => trimStationWalks(p, last.fromName, last.toName)));
+  // 徒歩を外すと出発時刻が変わるので、並べ直し・重複除去・バッジ付けをやり直す
+  return mergePlans([plans.map((p) => trimStationWalks(p, last.fromName, last.toName))]);
 }
 
 /** 乗換案内の検索フック（NAVITIME API）。キーが無ければ NO_PROVIDER を返し、画面側で外部サービスへ誘導する。 */
@@ -86,23 +89,33 @@ export function useTransitSearch() {
         opts?.onResolved?.(from, to);
         if (!key) throw new NavitimeError('NO_PROVIDER', NAVITIME_MESSAGES.NO_PROVIDER);
         if (!from.location || !to.location) throw new NavitimeError('RESOLVE', NAVITIME_MESSAGES.RESOLVE);
-        const params = buildNavitimeParams(from.location, to.location, query.timeType, query.time, NAVITIME_LIMIT, query.filter ?? 'all');
-        const last: LastSearch = { key, params, fromName: from.name, toName: to.name };
-        const first = await fetchPlans(last);
+        const names = { key, fromName: from.name, toName: to.name };
+        // NAVITIME アプリと同じく駅コードで検索する（初めての駅は座標で検索して駅コードを学ぶ）
+        const station = await searchFromStations(
+          { ...from, location: from.location },
+          { ...to, location: to.location },
+          query,
+          (p) => fetchPlans(names, p),
+        );
         if (my !== seq.current) return undefined;
+        const { params } = station;
+        const first = station.plans;
         if (first.length === 0) throw new NavitimeError('ZERO_RESULTS', NAVITIME_MESSAGES.ZERO_RESULTS, 'items=0');
+        const last: LastSearch = { ...names, params };
         lastRef.current = last;
+        const searchTime = params.start_time ?? params.goal_time;
+        const base = { searchTime, fromStations: station.usedNodes, firstBatch: first.length };
         // NAVITIME アプリのように後続便を並べる: 候補が少なければ時刻をずらして追加取得
         let plans = first;
-        let calls = 1;
+        let calls = station.calls;
         if (autoFollowups) {
-          setState({ ...EMPTY, loading: true, plans: first, apiCalls: 1, firstBatch: first.length });
+          setState({ ...EMPTY, ...base, loading: true, plans: first, apiCalls: calls });
           const r = await collectFollowups((p) => fetchPlans(last, p), params, first, { min: MIN_CANDIDATES, max: AUTO_FOLLOWUPS });
           if (my !== seq.current) return undefined;
           plans = r.plans;
           calls += r.calls;
         }
-        setState({ ...EMPTY, plans, moreLoaded: false, apiCalls: calls, firstBatch: first.length });
+        setState({ ...EMPTY, ...base, plans, moreLoaded: false, apiCalls: calls });
         return plans;
       } catch (err) {
         if (my !== seq.current) return undefined;

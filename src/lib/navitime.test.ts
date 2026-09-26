@@ -8,6 +8,8 @@ import {
   mergePlans,
   navitimeUrl,
   NavitimeError,
+  planKey,
+  surchargeOf,
   legBoundaries,
   requestNavitimePlans,
   sectionPath,
@@ -146,7 +148,12 @@ describe('navitime', () => {
   });
 
   it('navitimeToPlans sorts and assigns badges; empty items yield none', () => {
-    const late = item({ summary: { ...item().summary, move: { ...item().summary.move, from_time: '2026-09-20T15:00:00+09:00', time: 20, fare: { unit_0: 500 } } } });
+    // 1 時間後の別の列車（同じ列車は 1 件にまとめられるので、乗車時刻もずらす）
+    const shift = (t?: string) => (t ? t.replace('T14:', 'T15:') : t);
+    const late = item({
+      summary: { ...item().summary, move: { ...item().summary.move, from_time: '2026-09-20T15:00:00+09:00', time: 20, fare: { unit_0: 500 } } },
+      sections: item().sections.map((s) => (s.type === 'move' ? { ...s, from_time: shift(s.from_time), to_time: shift(s.to_time) } : s)),
+    });
     const plans = navitimeToPlans({ items: [late, item()] });
     expect(plans.map((p) => p.fare?.value)).toEqual([252, 500]);
     expect(plans[1].badges).toContain('fastest');
@@ -186,6 +193,59 @@ describe('navitime', () => {
     expect(itemToPlan({ ...item(), shapes: undefined }, 0).overviewPath).toBeUndefined();
     expect(noShape.pathDetailed).toBe(false);
     expect(itemToPlan(item(), 0).pathDetailed).toBe(true);
+  });
+
+  it('accepts station codes as start/goal', () => {
+    const p = buildNavitimeParams('00006589', '00000838', 'departure', '2026-09-26T18:39');
+    expect(p.start).toBe('00006589');
+    expect(p.goal).toBe('00000838');
+    expect(p.start_time).toBe('2026-09-26T18:39:00');
+  });
+
+  it('adds express surcharges to the fare like the NAVITIME app', () => {
+    // 近鉄特急: 運賃 530 + 特急料金 520 = 1,050
+    const units = { unit_0: 'きっぷ運賃', unit_1: 'こども運賃', unit_48: 'IC運賃', unit_128: '特急料金', unit_129: 'こども特急料金' };
+    expect(surchargeOf({ unit_0: 530, unit_1: 270, unit_48: 530, unit_128: 520, unit_129: 260 }, units)).toBe(520);
+    // unit 表が無ければ既知の料金 unit だけを見る（こども運賃は足さない）
+    expect(surchargeOf({ unit_0: 530, unit_1: 270, unit_48: 530, unit_128: 520 })).toBe(520);
+    expect(surchargeOf({ unit_0: 530, unit_1: 270, unit_48: 530 })).toBe(0);
+    expect(surchargeOf(undefined)).toBe(0);
+
+    const express = {
+      ...item(),
+      summary: { ...item().summary, move: { ...item().summary.move, fare: { unit_0: 530, unit_48: 530 } } },
+      sections: item().sections.map((s) =>
+        s.type === 'move' && s.move === 'local_train'
+          ? { ...s, move: 'ultraexpress_train', transport: { ...s.transport, fare: { unit_0: 530, unit_48: 530, unit_128: 520 } } }
+          : s,
+      ),
+    };
+    const plan = itemToPlan(express, 0, new Date(), units);
+    expect(plan.fare?.value).toBe(1050);
+    expect(plan.surcharge).toBe(520);
+    const ride = plan.segments.find((s) => s.kind === 'transit' && s.lineName === '近鉄奈良線');
+    expect(ride?.kind === 'transit' && ride.fare?.value).toBe(1050);
+    expect(ride?.kind === 'transit' && ride.surcharge).toBe(520);
+    // 料金の無い経路は今までどおり
+    expect(itemToPlan(item(), 0).surcharge).toBeUndefined();
+  });
+
+  it('records the boarding and alighting station codes', () => {
+    const plan = itemToPlan(item(), 0);
+    expect(plan.boardNode).toEqual({ id: 'b1', name: '鶴舞' });
+    expect(plan.alightNode).toEqual({ id: 's1', name: '学園前駅' });
+  });
+
+  it('planKey identifies a plan by its trains, so a trimmed walk does not create a duplicate', () => {
+    const a = itemToPlan(item(), 0);
+    const b = { ...a, departureTime: new Date(a.departureTime.getTime() + 60_000), walkSec: 0, segments: a.segments.slice(1) };
+    expect(planKey(a)).toBe(planKey(b));
+    expect(mergePlans([[a], [b]])).toHaveLength(1);
+    const other = itemToPlan(
+      { ...item(), sections: item().sections.map((s) => (s.type === 'move' && s.move === 'local_bus' ? { ...s, from_time: '2026-09-20T14:17:00+09:00' } : s)) },
+      1,
+    );
+    expect(planKey(other)).not.toBe(planKey(a));
   });
 
   it('keeps per-ride distance and fare, and the total distance', () => {
