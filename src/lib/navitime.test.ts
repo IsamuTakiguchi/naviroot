@@ -202,41 +202,61 @@ describe('navitime', () => {
     expect(p.start_time).toBe('2026-09-26T18:39:00');
   });
 
-  it('adds express surcharges only for express-type rides, taking one unit by priority', () => {
-    // 近鉄特急: 運賃 530 + 特急料金（指定席 unit_128）520 = 1,050。自由席 unit_130 が同時にあっても 128 を採る
-    const f = { unit_0: 530, unit_1: 270, unit_48: 530, unit_49: 270, unit_128: 520, unit_130: 320, unit_132: 1000 };
-    expect(surchargeOf(f, 'ultraexpress_train')).toBe(520);
-    expect(surchargeOf({ unit_0: 530, unit_48: 530, unit_130: 320 }, 'ultraexpress_train')).toBe(320);
-    expect(surchargeOf(f, 'superexpress_train')).toBe(520);
-    // 急行・快速急行・普通は料金 unit が付いていても足さない
-    expect(surchargeOf(f, 'express_train')).toBe(0);
-    expect(surchargeOf(f, 'rapid_train')).toBe(0);
-    expect(surchargeOf(f, 'local_train')).toBe(0);
-    expect(surchargeOf({ unit_0: 530, unit_1: 270, unit_48: 530 }, 'ultraexpress_train')).toBe(0);
-    expect(surchargeOf(undefined, 'ultraexpress_train')).toBe(0);
+  it('adds only the special fares NAVITIME marks as default_extra_fare (unit_128 etc. are commuter passes)', () => {
+    // 学園前→大阪難波の近鉄特急。unit_128 は通勤定期 1ヶ月なので足してはいけない
+    const transport = {
+      fare: { unit_0: 530, unit_48: 530, unit_128: 5600, unit_130: 15960, unit_133: 30240 },
+      fare_detail: [
+        { start: { name: '学園前' }, goal: { name: '大阪難波' }, fare: 520, default_extra_fare: true, id: '2' },
+        { start: { name: '学園前' }, goal: { name: '大阪難波' }, fare: 1000, default_extra_fare: false, id: '3' },
+      ],
+    };
+    expect(surchargeOf(transport)).toEqual({ amount: 520, label: '指定席特急料金' });
+    expect(surchargeOf({ fare: { unit_0: 530, unit_48: 530, unit_128: 5600 } })).toEqual({ amount: 0 });
+    expect(surchargeOf(undefined)).toEqual({ amount: 0 });
 
     const express = {
       ...item(),
-      summary: { ...item().summary, move: { ...item().summary.move, fare: { unit_0: 560, unit_48: 542 } } },
+      summary: { ...item().summary, move: { ...item().summary.move, fare: { unit_0: 560, unit_48: 542, unit_128: 9000 } } },
       sections: item().sections.map((s) =>
         s.type === 'move' && s.move === 'local_train'
-          ? { ...s, move: 'ultraexpress_train', transport: { ...s.transport, fare: { unit_0: 260, unit_48: 252, unit_128: 520 } } }
+          ? { ...s, move: 'ultraexpress_train', transport: { ...s.transport, ...transport, fare: { unit_0: 260, unit_48: 252, unit_128: 5600 } } }
           : s.type === 'move' && s.move === 'local_bus'
-            ? { ...s, transport: { ...s.transport, fare: { unit_0: 300, unit_48: 290 } } }
+            ? { ...s, transport: { ...s.transport, fare: { unit_0: 300, unit_48: 290, unit_128: 3400 } } }
             : s,
       ),
     };
     const plan = itemToPlan(express, 0);
     expect(plan.fare?.value).toBe(542 + 520);
     expect(plan.surcharge).toBe(520);
-    expect(plan.fareUnits).toEqual({ unit_0: 560, unit_48: 542 });
+    expect(plan.surchargeLabel).toBe('指定席特急料金');
+    expect(plan.fareUnits).toEqual({ unit_0: 560, unit_48: 542, unit_128: 9000 });
     // 区間運賃の合計（290 + 252）が経路の運賃（542）と一致するので区間の運賃も出す
     const rides = plan.segments.filter((x) => x.kind === 'transit');
     expect(rides.map((r) => (r.kind === 'transit' ? r.fare?.value : undefined))).toEqual([290, 252 + 520]);
     expect(rides[1].kind === 'transit' && rides[1].surcharge).toBe(520);
-    expect(rides[1].kind === 'transit' && rides[1].fareUnits).toEqual({ unit_0: 260, unit_48: 252, unit_128: 520 });
+    expect(rides[1].kind === 'transit' && rides[1].fareDetail).toEqual([
+      { id: '2', name: '指定席特急料金', fare: 520, default: true },
+      { id: '3', name: 'グリーン料金', fare: 1000, default: false },
+    ]);
     // 料金の無い経路は今までどおり
     expect(itemToPlan(item(), 0).surcharge).toBeUndefined();
+  });
+
+  it('uses fare_break to decide which ride shows the through fare', () => {
+    const through = {
+      ...item(),
+      summary: { ...item().summary, move: { ...item().summary.move, fare: { unit_0: 560, unit_48: 542 } } },
+      sections: item().sections.map((s) =>
+        s.type === 'move' && s.move === 'local_bus'
+          ? { ...s, transport: { ...s.transport, fare: { unit_0: 560, unit_48: 542 }, fare_break: { unit_0: true, unit_48: true } } }
+          : s.type === 'move' && s.move === 'local_train'
+            ? { ...s, transport: { ...s.transport, fare: { unit_0: 560, unit_48: 542 }, fare_break: { unit_0: false, unit_48: false } } }
+            : s,
+      ),
+    };
+    const rides = itemToPlan(through, 0).segments.filter((x) => x.kind === 'transit');
+    expect(rides.map((r) => (r.kind === 'transit' ? r.fare?.value : undefined))).toEqual([542, undefined]);
   });
 
   it('drops per-ride fares when they do not add up to the route fare (through fares)', () => {

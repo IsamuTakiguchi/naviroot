@@ -40,6 +40,15 @@ export interface NavitimeFare {
   [key: string]: number | undefined;
 }
 
+export interface NavitimeFareDetail {
+  start?: { node_id?: string; name?: string };
+  goal?: { node_id?: string; name?: string };
+  fare?: number;
+  default_extra_fare?: boolean;
+  /** 運賃区分 ID（'1' 自由席料金, '2' 指定席料金, '3' グリーン料金 など） */
+  id?: string;
+}
+
 export interface NavitimePoint {
   type: 'point';
   name?: string;
@@ -61,6 +70,10 @@ export interface NavitimeMove {
     color?: string;
     type?: string;
     fare?: NavitimeFare;
+    /** 特別料金（特急・指定席・グリーンなど）の明細。default_extra_fare が true のものを運賃に足す */
+    fare_detail?: NavitimeFareDetail[];
+    /** この区間で運賃が確定する（通し運賃の切れ目）運賃区分 */
+    fare_break?: Record<string, boolean>;
     company?: { id?: string; name?: string };
     links?: { id?: string; name?: string; direction?: string; destination?: { id?: string; name?: string } }[];
   };
@@ -340,27 +353,28 @@ function baseFare(f: NavitimeFare | undefined): number | undefined {
   return v != null && Number.isFinite(v) ? v : undefined;
 }
 
-/** 追加料金（特急料金など）が要る移動の種別。急行・快速などは運賃だけ */
-export const SURCHARGE_MOVES = new Set(['ultraexpress_train', 'superexpress_train', 'sleeper_ultraexpress', 'domestic_flight']);
+/** 運賃区分 ID → 名前（NAVITIME の fare_table。特別料金として足すのはこの 3 種） */
+export const FARE_CATEGORY_NAME: Record<string, string> = {
+  '1': '自由席特急料金',
+  '2': '指定席特急料金',
+  '3': 'グリーン料金',
+};
 
 /**
- * 追加料金として採る unit の優先順位（大人）。
- * 128: 特急料金（指定席・通常期）, 130: 特急料金（自由席）, 134 / 136: 期別の指定席料金。
- * 複数あっても 1 つだけ採り、グリーン・寝台などは足さない。
+ * 特急料金などの追加料金。NAVITIME の仕様どおり、区間の fare_detail のうち
+ * default_extra_fare が true のものだけを足す（unit_128 などは定期券の運賃なので使わない）。
  */
-const SURCHARGE_UNIT_ORDER = ['unit_128', 'unit_130', 'unit_134', 'unit_136'];
-
-/**
- * 特急料金などの追加料金。NAVITIME アプリの「有料」ルートは運賃にこれを足して表示する。
- * 追加料金が要る種別の移動でだけ、決まった unit を 1 つ採る（応答の unit は単位表で、料金の名前表ではない）。
- */
-export function surchargeOf(f: NavitimeFare | undefined, move: string | undefined): number {
-  if (!f || !move || !SURCHARGE_MOVES.has(move)) return 0;
-  for (const k of SURCHARGE_UNIT_ORDER) {
-    const v = f[k];
-    if (typeof v === 'number' && v > 0) return v;
+export function surchargeOf(transport: NavitimeMove['transport'] | undefined): { amount: number; label?: string } {
+  const details = transport?.fare_detail ?? [];
+  let amount = 0;
+  const names: string[] = [];
+  for (const d of details) {
+    if (!d.default_extra_fare || typeof d.fare !== 'number' || !(d.fare > 0)) continue;
+    amount += d.fare;
+    const name = (d.id && FARE_CATEGORY_NAME[d.id]) || '特急料金';
+    if (!names.includes(name)) names.push(name);
   }
-  return 0;
+  return amount > 0 ? { amount, label: names.join('・') } : { amount: 0 };
 }
 
 /** 料金の生データ（数値の unit だけ）。内訳表示・診断用 */
@@ -456,6 +470,8 @@ export function itemToPlan(item: NavitimeItem, index: number, now: Date = new Da
   let boardNode: TransitPlan['boardNode'];
   let alightNode: TransitPlan['alightNode'];
   let surchargeTotal = 0;
+  const surchargeLabels: string[] = [];
+  const hasFareBreak = sections.some((x) => x.type === 'move' && x.transport?.fare_break);
   for (let i = 0; i < sections.length; i++) {
     const s = sections[i];
     if (s.type !== 'move') continue;
@@ -494,13 +510,20 @@ export function itemToPlan(item: NavitimeItem, index: number, now: Date = new Da
       durationSec,
       distanceM: s.distance,
     };
-    const surcharge = surchargeOf(t?.fare, s.move);
-    if (surcharge > 0) {
-      seg.surcharge = surcharge;
-      surchargeTotal += surcharge;
+    const extra = surchargeOf(t);
+    if (extra.amount > 0) {
+      seg.surcharge = extra.amount;
+      seg.surchargeLabel = extra.label;
+      surchargeTotal += extra.amount;
+      if (extra.label && !surchargeLabels.includes(extra.label)) surchargeLabels.push(extra.label);
     }
-    seg.fare = fareOf(t?.fare, surcharge);
+    // 区間の運賃は、この区間で運賃が確定する（fare_break が true）ときだけ付ける。
+    // fare_break が無い応答では、後で区間の合計が経路の運賃と一致するかで判断する
+    const fb = t?.fare_break;
+    const breakUnit = fb ? (t?.fare?.unit_48 != null ? 'unit_48' : 'unit_0') : undefined;
+    if (!fb || fb[breakUnit!]) seg.fare = fareOf(t?.fare, extra.amount);
     seg.fareUnits = fareUnitsOf(t?.fare);
+    if (t?.fare_detail?.length) seg.fareDetail = t.fare_detail.map((d) => ({ id: d.id, name: d.id ? FARE_CATEGORY_NAME[d.id] : undefined, fare: d.fare, default: d.default_extra_fare }));
     segments.push(seg);
   }
   const merged = mergeWalks(segments);
@@ -508,11 +531,13 @@ export function itemToPlan(item: NavitimeItem, index: number, now: Date = new Da
   const move = item.summary.move;
   // 区間ごとの運賃は、足し合わせて経路の運賃と一致するときだけ出す
   //（NAVITIME は通し運賃を最初の区間にまとめることがあり、その場合は区間の額が実態と合わない）
-  const planBase = baseFare(move.fare);
-  const segBases = transit.map((x) => (x.fare ? x.fare.value - (x.surcharge ?? 0) : undefined));
-  const consistent =
-    planBase != null && segBases.every((b) => b != null) && segBases.reduce((a, b) => a + (b ?? 0), 0) === planBase;
-  if (!consistent) for (const x of transit) delete x.fare;
+  if (!hasFareBreak) {
+    const planBase = baseFare(move.fare);
+    const segBases = transit.map((x) => (x.fare ? x.fare.value - (x.surcharge ?? 0) : undefined));
+    const consistent =
+      planBase != null && segBases.every((b) => b != null) && segBases.reduce((a, b) => a + (b ?? 0), 0) === planBase;
+    if (!consistent) for (const x of transit) delete x.fare;
+  }
   const shape = shapesToPath(item.shapes);
   // 形状データが無い契約でも地図に線を引けるよう、地点座標をつないだ簡易経路で代用する
   const path = shape.length > 1 ? shape : sectionPath(item.sections);
@@ -524,6 +549,7 @@ export function itemToPlan(item: NavitimeItem, index: number, now: Date = new Da
     transfers: move.transit_count ?? Math.max(0, transit.length - 1),
     fare: fareOf(move.fare, surchargeTotal),
     surcharge: surchargeTotal > 0 ? surchargeTotal : undefined,
+    surchargeLabel: surchargeLabels.length ? surchargeLabels.join('・') : undefined,
     fareUnits: fareUnitsOf(move.fare),
     walkSec: merged.filter((x) => x.kind === 'walk').reduce((a, x) => a + x.durationSec, 0),
     distanceM: move.distance,

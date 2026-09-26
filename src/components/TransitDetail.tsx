@@ -120,7 +120,7 @@ export function TransitDetail({
             </div>
             {plan.fare && plan.surcharge ? (
               <div className="nv-fare-breakdown">
-                運賃 {formatYen(plan.fare.value - plan.surcharge)} ＋ 特急料金 {formatYen(plan.surcharge)}
+                運賃 {formatYen(plan.fare.value - plan.surcharge)} ＋ {plan.surchargeLabel ?? '特急料金'} {formatYen(plan.surcharge)}
               </div>
             ) : null}
           </div>
@@ -235,7 +235,11 @@ export function TransitDetail({
                 {s.fare || s.surcharge ? (
                   <div className="nv-ride-fare">
                     {s.fare && <div>{formatYen(s.fare.value - (s.surcharge ?? 0))}</div>}
-                    {s.surcharge ? <div className="nv-ride-surcharge">特急料金 {formatYen(s.surcharge)}</div> : null}
+                    {s.surcharge ? (
+                      <div className="nv-ride-surcharge">
+                        {s.surchargeLabel ?? '特急料金'} {formatYen(s.surcharge)}
+                      </div>
+                    ) : null}
                   </div>
                 ) : null}
               </div>
@@ -254,6 +258,9 @@ export function TransitDetail({
                   x.kind === 'transit' ? (
                     <div key={i}>
                       {x.lineName}: {Object.entries(x.fareUnits ?? {}).map(([k, v]) => `${k}=${v}`).join(' ')}
+                      {x.fareDetail?.length
+                        ? ` | 特別料金: ${x.fareDetail.map((d) => `${d.name ?? d.id ?? '?'}=${d.fare ?? '?'}${d.default ? '(適用)' : ''}`).join(' ')}`
+                        : ''}
                     </div>
                   ) : null,
                 )}
