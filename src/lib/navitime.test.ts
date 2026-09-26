@@ -202,32 +202,59 @@ describe('navitime', () => {
     expect(p.start_time).toBe('2026-09-26T18:39:00');
   });
 
-  it('adds express surcharges to the fare like the NAVITIME app', () => {
-    // 近鉄特急: 運賃 530 + 特急料金 520 = 1,050
-    const units = { unit_0: 'きっぷ運賃', unit_1: 'こども運賃', unit_48: 'IC運賃', unit_128: '特急料金', unit_129: 'こども特急料金' };
-    expect(surchargeOf({ unit_0: 530, unit_1: 270, unit_48: 530, unit_128: 520, unit_129: 260 }, units)).toBe(520);
-    // unit 表が無ければ既知の料金 unit だけを見る（こども運賃は足さない）
-    expect(surchargeOf({ unit_0: 530, unit_1: 270, unit_48: 530, unit_128: 520 })).toBe(520);
-    expect(surchargeOf({ unit_0: 530, unit_1: 270, unit_48: 530 })).toBe(0);
-    expect(surchargeOf(undefined)).toBe(0);
+  it('adds express surcharges only for express-type rides, taking one unit by priority', () => {
+    // 近鉄特急: 運賃 530 + 特急料金（指定席 unit_128）520 = 1,050。自由席 unit_130 が同時にあっても 128 を採る
+    const f = { unit_0: 530, unit_1: 270, unit_48: 530, unit_49: 270, unit_128: 520, unit_130: 320, unit_132: 1000 };
+    expect(surchargeOf(f, 'ultraexpress_train')).toBe(520);
+    expect(surchargeOf({ unit_0: 530, unit_48: 530, unit_130: 320 }, 'ultraexpress_train')).toBe(320);
+    expect(surchargeOf(f, 'superexpress_train')).toBe(520);
+    // 急行・快速急行・普通は料金 unit が付いていても足さない
+    expect(surchargeOf(f, 'express_train')).toBe(0);
+    expect(surchargeOf(f, 'rapid_train')).toBe(0);
+    expect(surchargeOf(f, 'local_train')).toBe(0);
+    expect(surchargeOf({ unit_0: 530, unit_1: 270, unit_48: 530 }, 'ultraexpress_train')).toBe(0);
+    expect(surchargeOf(undefined, 'ultraexpress_train')).toBe(0);
 
     const express = {
       ...item(),
-      summary: { ...item().summary, move: { ...item().summary.move, fare: { unit_0: 530, unit_48: 530 } } },
+      summary: { ...item().summary, move: { ...item().summary.move, fare: { unit_0: 560, unit_48: 542 } } },
       sections: item().sections.map((s) =>
         s.type === 'move' && s.move === 'local_train'
-          ? { ...s, move: 'ultraexpress_train', transport: { ...s.transport, fare: { unit_0: 530, unit_48: 530, unit_128: 520 } } }
-          : s,
+          ? { ...s, move: 'ultraexpress_train', transport: { ...s.transport, fare: { unit_0: 260, unit_48: 252, unit_128: 520 } } }
+          : s.type === 'move' && s.move === 'local_bus'
+            ? { ...s, transport: { ...s.transport, fare: { unit_0: 300, unit_48: 290 } } }
+            : s,
       ),
     };
-    const plan = itemToPlan(express, 0, new Date(), units);
-    expect(plan.fare?.value).toBe(1050);
+    const plan = itemToPlan(express, 0);
+    expect(plan.fare?.value).toBe(542 + 520);
     expect(plan.surcharge).toBe(520);
-    const ride = plan.segments.find((s) => s.kind === 'transit' && s.lineName === '近鉄奈良線');
-    expect(ride?.kind === 'transit' && ride.fare?.value).toBe(1050);
-    expect(ride?.kind === 'transit' && ride.surcharge).toBe(520);
+    expect(plan.fareUnits).toEqual({ unit_0: 560, unit_48: 542 });
+    // 区間運賃の合計（290 + 252）が経路の運賃（542）と一致するので区間の運賃も出す
+    const rides = plan.segments.filter((x) => x.kind === 'transit');
+    expect(rides.map((r) => (r.kind === 'transit' ? r.fare?.value : undefined))).toEqual([290, 252 + 520]);
+    expect(rides[1].kind === 'transit' && rides[1].surcharge).toBe(520);
+    expect(rides[1].kind === 'transit' && rides[1].fareUnits).toEqual({ unit_0: 260, unit_48: 252, unit_128: 520 });
     // 料金の無い経路は今までどおり
     expect(itemToPlan(item(), 0).surcharge).toBeUndefined();
+  });
+
+  it('drops per-ride fares when they do not add up to the route fare (through fares)', () => {
+    // 通し運賃: NAVITIME が最初の区間に全額を付け、2 区間目が 0 のようなケース
+    const through = {
+      ...item(),
+      summary: { ...item().summary, move: { ...item().summary.move, fare: { unit_0: 560, unit_48: 542 } } },
+      sections: item().sections.map((s) =>
+        s.type === 'move' && s.move === 'local_bus'
+          ? { ...s, transport: { ...s.transport, fare: { unit_0: 560, unit_48: 542 } } }
+          : s.type === 'move' && s.move === 'local_train'
+            ? { ...s, transport: { ...s.transport, fare: { unit_0: 260, unit_48: 252 } } }
+            : s,
+      ),
+    };
+    const plan = itemToPlan(through, 0);
+    expect(plan.fare?.value).toBe(542);
+    expect(plan.segments.filter((x) => x.kind === 'transit').every((x) => x.kind === 'transit' && x.fare === undefined)).toBe(true);
   });
 
   it('records the boarding and alighting station codes', () => {
@@ -253,11 +280,17 @@ describe('navitime', () => {
     const rides = plan.segments.filter((s) => s.kind === 'transit');
     expect(rides.map((r) => (r.kind === 'transit' ? r.distanceM : undefined))).toEqual([3000, 2800]);
     expect(plan.distanceM).toBe(6200);
+    // 区間の運賃（290 + 252）が経路の運賃（542）と一致するときだけ区間ごとに出す
     const withFare = itemToPlan(
       {
         ...item(),
+        summary: { ...item().summary, move: { ...item().summary.move, fare: { unit_0: 560, unit_48: 542 } } },
         sections: item().sections.map((s) =>
-          s.type === 'move' && s.move === 'local_bus' ? { ...s, transport: { ...s.transport, fare: { unit_0: 300, unit_48: 290 } } } : s,
+          s.type === 'move' && s.move === 'local_bus'
+            ? { ...s, transport: { ...s.transport, fare: { unit_0: 300, unit_48: 290 } } }
+            : s.type === 'move' && s.move === 'local_train'
+              ? { ...s, transport: { ...s.transport, fare: { unit_0: 260, unit_48: 252 } } }
+              : s,
         ),
       },
       0,

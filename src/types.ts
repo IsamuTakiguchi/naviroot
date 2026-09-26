@@ -64,6 +64,8 @@ export interface TransitSegment {
   fare?: { value: number; currency: string; text: string };
   /** 特急料金などの追加料金（運賃に含めた額） */
   surcharge?: number;
+  /** NAVITIME が返した料金の生データ（unit_0 など。内訳・診断用） */
+  fareUnits?: Record<string, number>;
 }
 
 export type PlanSegment = WalkSegment | TransitSegment;
@@ -80,6 +82,8 @@ export interface TransitPlan {
   distanceM?: number;
   /** 特急料金などの追加料金の合計（fare.value に含めた額。0 より大きければ NAVITIME の「有料」） */
   surcharge?: number;
+  /** NAVITIME が返した経路全体の料金の生データ（unit_0 など。内訳・診断用） */
+  fareUnits?: Record<string, number>;
   /** 最初に乗る駅・最後に降りる駅の NAVITIME ノード（駅コードでの再検索に使う） */
   boardNode?: { id: string; name: string };
   alightNode?: { id: string; name: string };

@@ -340,27 +340,35 @@ function baseFare(f: NavitimeFare | undefined): number | undefined {
   return v != null && Number.isFinite(v) ? v : undefined;
 }
 
-/** 運賃そのものの unit（大人／こどもの きっぷ・IC） */
-const BASE_UNITS = new Set(['unit_0', 'unit_1', 'unit_48', 'unit_49']);
-/** 特急・座席などの「料金」を表す unit ID（NAVITIME の unit 定義。応答の unit 表が無いときの既定） */
-const SURCHARGE_UNITS = new Set(['unit_128', 'unit_130', 'unit_132', 'unit_134', 'unit_136', 'unit_138', 'unit_140', 'unit_142']);
-const CHILD = /こども|子供|小児|幼児/;
+/** 追加料金（特急料金など）が要る移動の種別。急行・快速などは運賃だけ */
+export const SURCHARGE_MOVES = new Set(['ultraexpress_train', 'superexpress_train', 'sleeper_ultraexpress', 'domestic_flight']);
+
+/**
+ * 追加料金として採る unit の優先順位（大人）。
+ * 128: 特急料金（指定席・通常期）, 130: 特急料金（自由席）, 134 / 136: 期別の指定席料金。
+ * 複数あっても 1 つだけ採り、グリーン・寝台などは足さない。
+ */
+const SURCHARGE_UNIT_ORDER = ['unit_128', 'unit_130', 'unit_134', 'unit_136'];
 
 /**
  * 特急料金などの追加料金。NAVITIME アプリの「有料」ルートは運賃にこれを足して表示する。
- * 応答の unit 表（unit ID → 名前）があれば「料金」と付く大人向けの unit を、無ければ既知の料金 unit を使い、
- * 複数あれば安い方（自由席など）を採る。
+ * 追加料金が要る種別の移動でだけ、決まった unit を 1 つ採る（応答の unit は単位表で、料金の名前表ではない）。
  */
-export function surchargeOf(f: NavitimeFare | undefined, units?: Record<string, string>): number {
-  if (!f) return 0;
-  const candidates: number[] = [];
-  for (const [k, v] of Object.entries(f)) {
-    if (BASE_UNITS.has(k) || typeof v !== 'number' || !(v > 0)) continue;
-    const label = units?.[k];
-    const ok = label ? /料金/.test(label) && !CHILD.test(label) : SURCHARGE_UNITS.has(k);
-    if (ok) candidates.push(v);
+export function surchargeOf(f: NavitimeFare | undefined, move: string | undefined): number {
+  if (!f || !move || !SURCHARGE_MOVES.has(move)) return 0;
+  for (const k of SURCHARGE_UNIT_ORDER) {
+    const v = f[k];
+    if (typeof v === 'number' && v > 0) return v;
   }
-  return candidates.length ? Math.min(...candidates) : 0;
+  return 0;
+}
+
+/** 料金の生データ（数値の unit だけ）。内訳表示・診断用 */
+export function fareUnitsOf(f: NavitimeFare | undefined): Record<string, number> | undefined {
+  if (!f) return undefined;
+  const out: Record<string, number> = {};
+  for (const [k, v] of Object.entries(f)) if (typeof v === 'number' && Number.isFinite(v)) out[k] = v;
+  return Object.keys(out).length ? out : undefined;
 }
 
 function fareOf(f: NavitimeFare | undefined, surcharge = 0): TransitPlan['fare'] {
@@ -442,7 +450,7 @@ export function legBoundaries(sections: NavitimeSection[] | undefined): LatLng[]
   return out;
 }
 
-export function itemToPlan(item: NavitimeItem, index: number, now: Date = new Date(), units?: Record<string, string>): TransitPlan {
+export function itemToPlan(item: NavitimeItem, index: number, now: Date = new Date()): TransitPlan {
   const segments: PlanSegment[] = [];
   const sections = item.sections ?? [];
   let boardNode: TransitPlan['boardNode'];
@@ -486,17 +494,25 @@ export function itemToPlan(item: NavitimeItem, index: number, now: Date = new Da
       durationSec,
       distanceM: s.distance,
     };
-    const surcharge = surchargeOf(t?.fare, units);
+    const surcharge = surchargeOf(t?.fare, s.move);
     if (surcharge > 0) {
       seg.surcharge = surcharge;
       surchargeTotal += surcharge;
     }
     seg.fare = fareOf(t?.fare, surcharge);
+    seg.fareUnits = fareUnitsOf(t?.fare);
     segments.push(seg);
   }
   const merged = mergeWalks(segments);
   const transit = merged.filter((x): x is TransitSegment => x.kind === 'transit');
   const move = item.summary.move;
+  // 区間ごとの運賃は、足し合わせて経路の運賃と一致するときだけ出す
+  //（NAVITIME は通し運賃を最初の区間にまとめることがあり、その場合は区間の額が実態と合わない）
+  const planBase = baseFare(move.fare);
+  const segBases = transit.map((x) => (x.fare ? x.fare.value - (x.surcharge ?? 0) : undefined));
+  const consistent =
+    planBase != null && segBases.every((b) => b != null) && segBases.reduce((a, b) => a + (b ?? 0), 0) === planBase;
+  if (!consistent) for (const x of transit) delete x.fare;
   const shape = shapesToPath(item.shapes);
   // 形状データが無い契約でも地図に線を引けるよう、地点座標をつないだ簡易経路で代用する
   const path = shape.length > 1 ? shape : sectionPath(item.sections);
@@ -508,6 +524,7 @@ export function itemToPlan(item: NavitimeItem, index: number, now: Date = new Da
     transfers: move.transit_count ?? Math.max(0, transit.length - 1),
     fare: fareOf(move.fare, surchargeTotal),
     surcharge: surchargeTotal > 0 ? surchargeTotal : undefined,
+    fareUnits: fareUnitsOf(move.fare),
     walkSec: merged.filter((x) => x.kind === 'walk').reduce((a, x) => a + x.durationSec, 0),
     distanceM: move.distance,
     boardNode,
@@ -551,5 +568,5 @@ export function mergePlans(lists: TransitPlan[][]): TransitPlan[] {
 
 export function navitimeToPlans(json: NavitimeResponse, now: Date = new Date()): TransitPlan[] {
   const items = json.items ?? [];
-  return mergePlans([items.map((it, i) => itemToPlan(it, i, now, json.unit))]);
+  return mergePlans([items.map((it, i) => itemToPlan(it, i, now))]);
 }

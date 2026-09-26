@@ -2625,6 +2625,36 @@ select {
   font-size: 15px;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
+  text-align: right;
+}
+
+.nv-ride-surcharge {
+  font-size: 12px;
+  color: var(--nv-arr);
+}
+
+.nv-fare-breakdown {
+  margin-top: 4px;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+/* 料金の生データ（診断用の折りたたみ） */
+.nv-fare-raw {
+  margin: 8px 16px 0;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.nv-fare-raw summary {
+  cursor: pointer;
+  color: var(--nv-blue);
+}
+
+.nv-fare-raw div {
+  margin-top: 4px;
+  font-family: ui-monospace, Menlo, Consolas, monospace;
+  word-break: break-all;
 }
 
 .nv-walk .nv-side {

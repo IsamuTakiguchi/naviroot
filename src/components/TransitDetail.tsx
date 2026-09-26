@@ -118,6 +118,11 @@ export function TransitDetail({
               {plan.distanceM ? ` ${formatDistance(plan.distanceM)}` : ''}
               {plan.walkSec > 0 && <span className="nv-sum-walk">徒歩 {formatDuration(plan.walkSec)}</span>}
             </div>
+            {plan.fare && plan.surcharge ? (
+              <div className="nv-fare-breakdown">
+                運賃 {formatYen(plan.fare.value - plan.surcharge)} ＋ 特急料金 {formatYen(plan.surcharge)}
+              </div>
+            ) : null}
           </div>
           <div className="nv-sum-side">
             <Badges badges={plan.badges} />
@@ -227,12 +232,34 @@ export function TransitDetail({
                   {s.headsign && <div className="nv-ride-head">{s.headsign}行</div>}
                   {s.agency && <div className="nv-ride-sub">{s.agency}</div>}
                 </div>
-                {s.fare && <div className="nv-ride-fare">{formatYen(s.fare.value)}</div>}
+                {s.fare || s.surcharge ? (
+                  <div className="nv-ride-fare">
+                    {s.fare && <div>{formatYen(s.fare.value - (s.surcharge ?? 0))}</div>}
+                    {s.surcharge ? <div className="nv-ride-surcharge">特急料金 {formatYen(s.surcharge)}</div> : null}
+                  </div>
+                ) : null}
               </div>
             );
           })}
         </div>
 
+        {plan.fareUnits && (
+          <details className="nv-fare-raw">
+            <summary>料金データを表示</summary>
+            <div>
+              経路全体: {Object.entries(plan.fareUnits).map(([k, v]) => `${k}=${v}`).join(' ')}
+              {plan.segments
+                .filter((x) => x.kind === 'transit' && x.fareUnits)
+                .map((x, i) =>
+                  x.kind === 'transit' ? (
+                    <div key={i}>
+                      {x.lineName}: {Object.entries(x.fareUnits ?? {}).map(([k, v]) => `${k}=${v}`).join(' ')}
+                    </div>
+                  ) : null,
+                )}
+            </div>
+          </details>
+        )}
         {destination && (
           <a className="nv-dest-map" href={googleMapsPlaceUrl(destination)} target="_blank" rel="noreferrer">
             <Icon name="pin" size={22} />
